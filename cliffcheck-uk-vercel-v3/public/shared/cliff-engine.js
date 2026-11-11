@@ -700,9 +700,20 @@
     }
 
     // ========================================================================
-    // CHECK 6: MOT HISTORY MILEAGE DROP (CLOCKING) & OIL-LEAK ADVISORIES
+    // CHECK 6: FULL MOT HISTORY, ADVISORIES, MILEAGE CLOCKING & CRASH CLUES
     // ========================================================================
+    function formatUkDate(isoStr) {
+      if (!isoStr) return "";
+      const m = String(isoStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return String(isoStr).slice(0, 10);
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const mo = months[parseInt(m[2], 10) - 1] || m[2];
+      return `${parseInt(m[3], 10)} ${mo} ${m[1]}`;
+    }
+
     const motTests = Array.isArray(raw.motTests) ? raw.motTests : [];
+    let mileageDropped = false;
+
     if (motTests.length >= 2) {
       const sorted = [...motTests]
         .filter((t) => Number(t.mileage || t.odometerValue) > 0)
@@ -711,6 +722,7 @@
         const prev = Number(sorted[i - 1].mileage || sorted[i - 1].odometerValue);
         const curr = Number(sorted[i].mileage || sorted[i].odometerValue);
         if (curr < prev - 100) {
+          mileageDropped = true;
           cliffs.unshift({
             id: "mot-mileage-drop",
             category: "MOT Odometer Discrepancy",
@@ -728,7 +740,9 @@
       }
     }
 
-    const latestAdvisories = motTests[0] && Array.isArray(motTests[0].advisories) ? motTests[0].advisories : [];
+    const latestTest = motTests[0] || null;
+    const latestAdvisories = latestTest && Array.isArray(latestTest.advisories) ? latestTest.advisories : [];
+    const latestFailures = latestTest && Array.isArray(latestTest.failures) ? latestTest.failures : [];
     const oilOrRustAdv = latestAdvisories.find((a) => /oil|corro|rust|subframe|leak|timing/i.test(a));
     if (oilOrRustAdv) {
       cliffs.push({
@@ -744,6 +758,140 @@
         proofToAsk: "Ask whether this advisory item was rectified during pre-sale prep (and ask for workshop sheet)."
       });
     }
+
+    // Build complete MOT & Accident-Clue Cross-Reference Report
+    const cleanCurrentReg = String(raw.registration || "")
+      .replace(/\s+/g, "")
+      .toUpperCase();
+    const previousPlatesSet = new Set();
+    const crashClues = [];
+    let passCount = 0;
+    let failCount = 0;
+
+    // Sort newest-first for timeline display
+    const newestFirst = [...motTests].sort((a, b) =>
+      String(b.date || b.completedDate || "").localeCompare(String(a.date || a.completedDate || ""))
+    );
+
+    const historyRows = newestFirst.map((t, idx) => {
+      const resStr = String(t.result || t.testResult || "PASSED").toUpperCase();
+      if (resStr.includes("PASS")) passCount++;
+      else if (resStr.includes("FAIL")) failCount++;
+
+      const testMiles = Number(t.mileage || t.odometerValue) || 0;
+      const olderTest = newestFirst[idx + 1];
+      const olderMiles = olderTest ? Number(olderTest.mileage || olderTest.odometerValue) || 0 : 0;
+      const milesDelta = olderTest && testMiles > 0 && olderMiles > 0 ? testMiles - olderMiles : null;
+
+      const regAtTestClean = String(t.regAtTest || t.registrationAtTimeOfTest || "")
+        .replace(/\s+/g, "")
+        .toUpperCase();
+      if (
+        regAtTestClean &&
+        cleanCurrentReg &&
+        !/CHECK/.test(cleanCurrentReg) &&
+        regAtTestClean !== cleanCurrentReg
+      ) {
+        previousPlatesSet.add(regAtTestClean);
+      }
+
+      const advs = Array.isArray(t.advisories) ? t.advisories : [];
+      const fails = Array.isArray(t.failures) ? t.failures : [];
+      const combinedItems = [...fails, ...advs];
+      const dateUk = formatUkDate(t.date || t.completedDate || "");
+
+      // Scan every MOT test item for crash / structural / airbag clues
+      combinedItems.forEach((txt) => {
+        if (
+          /\b(srs|airbag|supplementary restraint|pre-tensioner|chassis|subframe|crossmember|structural|accident|impact|body panel|bumper.*insecure|sharp edge|bent|distorted|misaligned)\b/i.test(
+            txt
+          ) &&
+          !/tyre|wiper|bulb|disc/i.test(txt)
+        ) {
+          if (crashClues.length < 6) {
+            crashClues.push(`${dateUk || "MOT"}: "${txt}"`);
+          }
+        }
+      });
+
+      return {
+        rawDateIso: String(t.date || t.completedDate || "").slice(0, 10),
+        dateUk: dateUk || "Recorded MOT",
+        expiryUk: formatUkDate(t.expiryDate || ""),
+        result: resStr.includes("FAIL") ? "FAILED" : "PASSED",
+        mileage: testMiles,
+        milesDelta,
+        regAtTest: regAtTestClean,
+        advisories: advs,
+        failures: fails,
+        isCleanPass: !resStr.includes("FAIL") && advs.length === 0 && fails.length === 0
+      };
+    });
+
+    // Check for >= 16 month off-road gap between consecutive PASSED MOTs (classic salvage/off-road repair gap)
+    const passedRows = historyRows.filter((r) => r.result === "PASSED" && r.rawDateIso);
+    for (let i = 0; i < passedRows.length - 1; i++) {
+      const dNewer = Date.parse(passedRows[i].rawDateIso);
+      const dOlder = Date.parse(passedRows[i + 1].rawDateIso);
+      if (!isNaN(dNewer) && !isNaN(dOlder)) {
+        const monthsGap = Math.round((dNewer - dOlder) / (1000 * 60 * 60 * 24 * 30.44));
+        if (monthsGap >= 16) {
+          crashClues.push(
+            `${monthsGap}-month off-road gap between passed MOTs (${passedRows[i + 1].dateUk} → ${passedRows[i].dateUk}) — ask why the car was off the road (SORN storage vs accident repair).`
+          );
+        }
+      }
+    }
+
+    const previousPlates = Array.from(previousPlatesSet);
+    if (previousPlates.length > 0) {
+      crashClues.unshift(
+        `Plate change spotted in MOT history (previously tested on: ${previousPlates.join(", ")}) — ask if cherished transfer, and cross-check previous plate too.`
+      );
+    }
+
+    const latestRow = historyRows[0] || null;
+    const expiryIso = (latestTest && latestTest.expiryDate) || raw.motExpiryDate || "";
+    const isMotExpired = expiryIso ? String(expiryIso).slice(0, 10) < "2026-11-09" : false;
+
+    const motReport = {
+      hasMotData: historyRows.length > 0,
+      totalTests: historyRows.length,
+      passCount,
+      failCount,
+      passRatePct: historyRows.length > 0 ? Math.round((passCount / historyRows.length) * 100) : 100,
+      latestResult: latestRow ? latestRow.result : "",
+      latestDateUk: latestRow ? latestRow.dateUk : "",
+      expiryDateUk: formatUkDate(expiryIso),
+      isMotExpired,
+      isLatestClean: Boolean(latestRow && latestRow.isCleanPass && !isMotExpired),
+      latestAdvisories,
+      latestFailures,
+      mileageConsistent: !mileageDropped,
+      previousPlates,
+      crashClues,
+      historyRows
+    };
+
+    const crossReference = {
+      colour: raw.primaryColour || "",
+      firstUsedDateUk: formatUkDate(raw.firstUsedDate || ""),
+      engineSizeCc: cc || 0,
+      fuelType: raw.fuelType || "Petrol",
+      recallStatus: raw.hasOutstandingRecall || "",
+      dvla: raw.dvlaCrossRef
+        ? {
+            taxStatus: raw.dvlaCrossRef.taxStatus || "",
+            taxDueDateUk: formatUkDate(raw.dvlaCrossRef.taxDueDate || ""),
+            lastV5CIssuedUk: formatUkDate(raw.dvlaCrossRef.dateOfLastV5CIssued || ""),
+            markedAsScrapped: Boolean(raw.dvlaCrossRef.markedAsScrapped),
+            markedForExport: Boolean(raw.dvlaCrossRef.markedForExport),
+            euroStatus: raw.dvlaCrossRef.euroStatus || "",
+            co2Emissions: raw.dvlaCrossRef.co2Emissions || 0,
+            luxuryTaxEndDateUk: formatUkDate(raw.dvlaCrossRef.artEndDate || "")
+          }
+        : null
+    };
 
     // ========================================================================
     // TOTAL EXPOSURE & NEGOTIATION SCRIPT GENERATION
@@ -803,10 +951,14 @@
     forecourtChecklist.push("Match the 17-digit VIN at the base of the windscreen against the V5C logbook & check 2 working remote keys are present.");
 
     const carLabel = `${year} ${make} ${model}`.trim();
+    const advNoteForScript =
+      latestAdvisories.length > 0
+        ? ` Also, were the ${latestAdvisories.length} advisory item(s) on the latest MOT sorted?`
+        : "";
     const hagglingScript =
       cliffs.length === 0
-        ? `Hi, I'm interested in the ${carLabel} (${mileage.toLocaleString()} miles). Could you confirm you hold full annual service invoices (not just stamps) and 2 keys? Ready to view this week if all checks out.`
-        : `Hi, I'm genuinely interested in the ${carLabel} at ${mileage.toLocaleString()} miles and ready to move quickly. Before I come down, do you have the itemised garage VAT invoice confirming the ${cliffs[0].category.toLowerCase()} (${cliffs[0].title.replace(/ Cliff| Risk| Warning/g, "")}) has already been completed? Without documented proof, UK specialist cost on that work is £${cliffs[0].costMin.toLocaleString()}–£${cliffs[0].costMax.toLocaleString()}, so I'd need to factor ~£${suggestedDiscount.toLocaleString()} into my offer (or have it completed prior to collection). Let me know!`;
+        ? `Hi, I'm interested in the ${carLabel} (${mileage.toLocaleString()} miles). Could you confirm you hold full annual service invoices (not just stamps), V5C in your name, and 2 keys?${advNoteForScript} Ready to view this week if all checks out.`
+        : `Hi, I'm genuinely interested in the ${carLabel} at ${mileage.toLocaleString()} miles and ready to move quickly. Before I come down, do you have the itemised garage VAT invoice confirming the ${cliffs[0].category.toLowerCase()} (${cliffs[0].title.replace(/ Cliff| Risk| Warning/g, "")}) has already been completed? Without documented proof, UK specialist cost on that work is £${cliffs[0].costMin.toLocaleString()}–£${cliffs[0].costMax.toLocaleString()}, so I'd need to factor ~£${suggestedDiscount.toLocaleString()} into my offer (or have it completed prior to collection).${advNoteForScript} Let me know!`;
 
     return {
       vehicleSummary: {
@@ -821,6 +973,8 @@
         transmission: isAuto ? "Automatic" : "Manual",
         askingPrice
       },
+      motReport,
+      crossReference,
       overallVerdict,
       verdictLabel,
       cliffCount: cliffs.length,

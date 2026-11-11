@@ -420,20 +420,30 @@
 
   plateForm.addEventListener("submit", async (e) => {
     e.preventDefault();
+    const plateErrorMsg = document.getElementById("plateErrorMsg");
+    if (plateErrorMsg) plateErrorMsg.classList.add("hidden");
+
     const cleanReg = regInput.value.replace(/\s+/g, "").toUpperCase();
     if (!cleanReg) return;
+
+    const platePriceEl = document.getElementById("platePrice");
+    const plateDriveEl = document.getElementById("plateDrive");
+    const enteredPrice = platePriceEl ? parseInt(platePriceEl.value, 10) || 0 : 0;
+    const enteredAwd = plateDriveEl ? plateDriveEl.value === "AWD" : false;
 
     if (engine.DEMO_VEHICLES[cleanReg]) {
       const clone = Object.assign({}, engine.DEMO_VEHICLES[cleanReg]);
       if (plateGearbox.value) clone.transmission = plateGearbox.value;
       if (Number(plateMileageOverride.value) > 0) clone.mileage = Number(plateMileageOverride.value);
+      if (enteredPrice > 0) clone.askingPrice = enteredPrice;
+      if (enteredAwd) clone.awd = true;
       runVehicleCheck(clone, false);
       return;
     }
 
     const btn = document.getElementById("checkPlateBtn");
     const origText = btn.textContent;
-    btn.textContent = "Checking UK Register...";
+    btn.textContent = "Checking Official UK MOT & Spec Register...";
     btn.disabled = true;
 
     try {
@@ -444,13 +454,23 @@
         const veh = data.vehicle;
         if (plateGearbox.value) veh.transmission = plateGearbox.value;
         if (Number(plateMileageOverride.value) > 0) veh.mileage = Number(plateMileageOverride.value);
+        if (enteredPrice > 0) veh.askingPrice = enteredPrice;
+        if (enteredAwd) veh.awd = true;
         runVehicleCheck(veh, true);
+      } else if (data && data.error) {
+        if (plateErrorMsg) {
+          plateErrorMsg.textContent = "⚠️ " + data.error;
+          plateErrorMsg.classList.remove("hidden");
+        }
       } else {
         activateTab("spec");
         specMake.focus();
       }
     } catch {
-      activateTab("spec");
+      if (plateErrorMsg) {
+        plateErrorMsg.textContent = "⚠️ Could not reach plate lookup — please retry or use Select Car.";
+        plateErrorMsg.classList.remove("hidden");
+      }
     } finally {
       btn.textContent = origText;
       btn.disabled = false;
@@ -490,11 +510,13 @@
   }
 
   // ==========================================================================
-  // RENDER BUYER REPORT (OFFER MATH + CLIFFS + FORECOURT CHECKLIST + HAGGLE)
+  // RENDER BUYER REPORT (MOT + CROSS-REF + CLIFFS + ACCIDENT/CAT CHECK + HAGGLE)
   // ==========================================================================
   function renderReport(report, isUnlocked) {
     resultsSection.classList.remove("hidden");
     const v = report.vehicleSummary;
+    const mot = report.motReport || { hasMotData: false };
+    const xref = report.crossReference || {};
     const affUrl = cfg.buildHistoryAffiliateUrl(v.registration);
 
     const exposureStr =
@@ -522,18 +544,202 @@
     `
         : "";
 
+    // ========================================================================
+    // 1. OFFICIAL UK MOT STATUS, ADVISORIES & V5C CROSS-REFERENCE CARD
+    // ========================================================================
+    let motAndXrefHtml = "";
+    if (isUnlocked && mot.hasMotData) {
+      let bannerClass = "clean";
+      let bannerTitle = "✅ CLEAN LATEST MOT PASS — Zero Advisories Recorded";
+      if (mot.latestResult === "FAILED" || mot.isMotExpired) {
+        bannerClass = "fail";
+        bannerTitle = mot.isMotExpired
+          ? "🚨 MOT EXPIRED — Do Not Drive Away Without Fresh Pass"
+          : "🚨 LATEST MOT FAILED — Check Failure Items Below";
+      } else if (mot.latestAdvisories && mot.latestAdvisories.length > 0) {
+        bannerClass = "warn";
+        bannerTitle = `⚠️ MOT Passed With ${mot.latestAdvisories.length} Advisory Item(s) — Ask If Fixed`;
+      }
+
+      const currentItems = [...(mot.latestFailures || []), ...(mot.latestAdvisories || [])];
+      const latestItemsHtml =
+        currentItems.length > 0
+          ? `
+        <div style="margin:10px 0 6px;font-size:0.8rem;font-weight:800;color:#fde68a;">
+          Items on Latest MOT (${escapeHtml(mot.latestDateUk)}):
+        </div>
+        <ul class="mot-adv-list">
+          ${currentItems.map((it) => `<li>${escapeHtml(it)}</li>`).join("")}
+        </ul>
+      `
+          : `
+        <div style="margin:6px 0 10px;font-size:0.83rem;color:#a7f3d0;">
+          Nothing flagged on the latest MOT test (${escapeHtml(mot.latestDateUk)} at ${v.mileage.toLocaleString()} miles) — passed with zero advisories or defects.
+        </div>
+      `;
+
+      const plateSwapText =
+        mot.previousPlates && mot.previousPlates.length > 0
+          ? `⚠️ Was: ${escapeHtml(mot.previousPlates.join(", "))}`
+          : "✅ Same plate on all MOTs";
+
+      const recallText =
+        xref.recallStatus && xref.recallStatus.toLowerCase() === "yes"
+          ? "🚨 Outstanding Recall!"
+          : xref.recallStatus && xref.recallStatus.toLowerCase() === "no"
+          ? "✅ No open recalls"
+          : "Check GOV.UK Recalls";
+
+      const dvlaBoxesHtml = xref.dvla
+        ? `
+          <div class="xref-box">
+            <small>Road Tax Status</small>
+            <strong>${escapeHtml(xref.dvla.taxStatus || "Check GOV.UK")}${xref.dvla.taxDueDateUk ? " (to " + escapeHtml(xref.dvla.taxDueDateUk) + ")" : ""}</strong>
+          </div>
+          <div class="xref-box">
+            <small>Last V5C Logbook Issued</small>
+            <strong>${escapeHtml(xref.dvla.lastV5CIssuedUk || "—")}</strong>
+          </div>
+          <div class="xref-box">
+            <small>DVLA Scrap / Export</small>
+            <strong style="color:${xref.dvla.markedAsScrapped || xref.dvla.markedForExport ? "#fca5a5" : "#34d399"};">
+              ${xref.dvla.markedAsScrapped ? "🚨 SCRAPPED" : xref.dvla.markedForExport ? "⚠️ EXPORTED" : "✅ Clear"}
+            </strong>
+          </div>
+        `
+        : "";
+
+      const historyRowsHtml = mot.historyRows
+        .map((row) => {
+          const deltaStr =
+            row.milesDelta !== null
+              ? ` <span style="color:#94a3b8;font-weight:600;">(${row.milesDelta >= 0 ? "+" : ""}${row.milesDelta.toLocaleString()} mi)</span>`
+              : "";
+          const rowItems = [
+            ...(row.failures || []).map((f) => `<li style="color:#fca5a5;">❌ Fail: ${escapeHtml(f)}</li>`),
+            ...(row.advisories || []).map((a) => `<li>⚠️ Advisory: ${escapeHtml(a)}</li>`)
+          ];
+          return `
+            <div class="mot-row">
+              <div class="mot-row-head">
+                <span>${escapeHtml(row.dateUk)} · ${row.mileage > 0 ? row.mileage.toLocaleString() + " mi" : "—"}${deltaStr}</span>
+                <span class="${row.result === "FAILED" ? "pill-fail" : "pill-pass"}">${escapeHtml(row.result)}</span>
+              </div>
+              ${
+                rowItems.length === 0
+                  ? `<div style="color:#6ee7b7;font-size:0.79rem;margin-top:4px;">✅ Clean Pass — Zero advisories recorded</div>`
+                  : `<ul class="mot-adv-list" style="margin:6px 0 0;">${rowItems.join("")}</ul>`
+              }
+            </div>
+          `;
+        })
+        .join("");
+
+      motAndXrefHtml = `
+        <div class="mot-card">
+          <div style="font-size:0.74rem;font-weight:800;color:#facc15;text-transform:uppercase;margin-bottom:8px;">
+            🇬🇧 Official UK MOT Record &amp; V5C Logbook Cross-Reference
+          </div>
+          <div class="mot-status-banner ${bannerClass}">
+            <div>
+              <div style="font-weight:900;font-size:0.96rem;">${bannerTitle}</div>
+              <div style="font-size:0.8rem;color:#cbd5e1;margin-top:2px;">
+                MOT Pass Record: <strong>${mot.passCount} Pass / ${mot.failCount} Fail (${mot.passRatePct}%)</strong>
+              </div>
+            </div>
+            ${
+              mot.expiryDateUk
+                ? `<div style="text-align:right;"><small style="display:block;font-size:0.68rem;color:#cbd5e1;text-transform:uppercase;">MOT Expires</small><strong style="font-size:0.95rem;">${escapeHtml(mot.expiryDateUk)}</strong></div>`
+                : ""
+            }
+          </div>
+
+          ${latestItemsHtml}
+
+          <div style="font-size:0.75rem;font-weight:800;color:#94a3b8;text-transform:uppercase;margin-top:10px;">
+            🔎 Cross-Reference Against Seller's Advert &amp; V5C Logbook:
+          </div>
+          <div class="xref-grid">
+            <div class="xref-box">
+              <small>Recorded Colour</small>
+              <strong>${escapeHtml(xref.colour || "Check V5C")}</strong>
+            </div>
+            <div class="xref-box">
+              <small>First Registered (True Age)</small>
+              <strong>${escapeHtml(xref.firstUsedDateUk || String(v.year))}</strong>
+            </div>
+            <div class="xref-box">
+              <small>Engine &amp; Fuel on Record</small>
+              <strong>${xref.engineSizeCc ? xref.engineSizeCc + "cc " : ""}${escapeHtml(xref.fuelType || v.fuelType)}</strong>
+            </div>
+            <div class="xref-box">
+              <small>Mileage Clocking Check</small>
+              <strong style="color:${mot.mileageConsistent ? "#34d399" : "#fca5a5"};">
+                ${mot.mileageConsistent ? `✅ Consistent (${mot.totalTests} MOTs)` : "🚨 DROP DETECTED"}
+              </strong>
+            </div>
+            <div class="xref-box">
+              <small>MOT Plate-Swap Check</small>
+              <strong>${plateSwapText}</strong>
+            </div>
+            <div class="xref-box">
+              <small>Safety Recall Status</small>
+              <strong>${recallText}</strong>
+            </div>
+            ${dvlaBoxesHtml}
+          </div>
+
+          <details class="mot-history-details">
+            <summary>📋 View Full Year-by-Year MOT History &amp; Past Advisories (${mot.totalTests} test${mot.totalTests === 1 ? "" : "s"}) ▾</summary>
+            ${historyRowsHtml}
+          </details>
+        </div>
+      `;
+    }
+
+    // ========================================================================
+    // 2. MECHANICAL COST CLIFFS (WET BELTS, CHAINS, GEARBOX, DPF, TAX)
+    // ========================================================================
     let detailsHtml = "";
 
-    if (report.cliffCount === 0) {
+    if (!isUnlocked) {
+      detailsHtml = `
+        <div class="paywall-wrap">
+          <div class="blurred-teaser">
+            <div class="cliff-item">
+              <strong>MOT Advisories, Cross-Reference, Crash Clues &amp; Mechanical Cliffs</strong>
+              <p>Full MOT advisory timeline, plate-swap check, garage repair bills &amp; seller haggling script...</p>
+            </div>
+          </div>
+          <div class="paywall-box">
+            <div style="font-size:0.75rem;font-weight:800;color:#facc15;text-transform:uppercase;margin-bottom:4px;">Free Check Used</div>
+            <h3 style="margin:0 0 8px;">Unlock Full MOT Cross-Check, ${report.cliffCount} Cost Trap(s) &amp; Haggling Script</h3>
+            <ul class="paywall-perks">
+              <li>✅ Full UK MOT advisory timeline, clocking &amp; crash-clue scan</li>
+              <li>✅ Hidden mechanical bill breakdown (${exposureStr})</li>
+              <li>✅ Tailored 5-point phone forecourt viewing checklist</li>
+              <li>✅ Ready-to-send seller message${report.suggestedDiscount > 0 ? ` to knock <strong>~£${report.suggestedDiscount.toLocaleString()}</strong> off asking price` : ""}</li>
+              <li>✅ <strong>Unlimited checks for 30 days</strong> on Phone &amp; Mozilla Firefox Add-On</li>
+            </ul>
+            <button type="button" id="inlineUnlockBtn" class="btn-primary" style="max-width:360px;">
+              Unlock 30-Day Pass — ${cfg.passPriceText} Once →
+            </button>
+            <div style="margin-top:8px;font-size:0.78rem;color:#94a3b8;">
+              Single payment · No subscription · Instant unlock
+            </div>
+          </div>
+        </div>
+      `;
+    } else if (report.cliffCount === 0) {
       detailsHtml = `
         <div class="cliff-item" style="border-color:rgba(16,185,129,0.45);">
-          <strong style="color:#34d399;">✅ Clean Engine Spec — Avoids Notorious Wet-Belt &amp; Chain Traps</strong>
+          <strong style="color:#34d399;">✅ Clean Mechanical Spec — Avoids Notorious Wet-Belt &amp; Chain Traps</strong>
           <p class="cliff-reason" style="margin-top:6px;">
-            This engine/age/mileage combination avoids the UK's high-failure wet-belt and rear-chain traps. Still run the 5-point forecourt inspection below and verify finance/write-off history before paying a deposit.
+            This engine/age/mileage combination avoids the UK's high-failure wet-belt and rear-chain traps. Still check the Accident / Cat C-D-S-N Cross-Check and 5-point viewing list below before paying a deposit.
           </p>
         </div>
       `;
-    } else if (isUnlocked) {
+    } else {
       detailsHtml = `
         <div class="cliff-list">
           ${report.cliffs
@@ -556,31 +762,48 @@
             .join("")}
         </div>
       `;
-    } else {
-      detailsHtml = `
-        <div class="paywall-wrap">
-          <div class="blurred-teaser">
-            <div class="cliff-item">
-              <strong>Hidden Maintenance Cliff #1 — £950 to £1,550 Specialist Job</strong>
-              <p>Exact mileage countdown, engine-code reason, forecourt inspection &amp; seller VAT invoice proof...</p>
-            </div>
-          </div>
-          <div class="paywall-box">
-            <div style="font-size:0.75rem;font-weight:800;color:#facc15;text-transform:uppercase;margin-bottom:4px;">Free Check Used</div>
-            <h3 style="margin:0 0 8px;">Unlock All ${report.cliffCount} Cost Trap(s), Viewing Checklist &amp; Haggling Script</h3>
-            <ul class="paywall-perks">
-              <li>✅ Full fault breakdown &amp; UK garage repair costs (${exposureStr})</li>
-              <li>✅ Tailored 5-point phone forecourt viewing checklist</li>
-              <li>✅ Ready-to-send seller message to knock <strong>~£${report.suggestedDiscount.toLocaleString()}</strong> off asking price</li>
-              <li>✅ <strong>Unlimited checks for 30 days</strong> on Phone &amp; Mozilla Firefox Add-On</li>
+    }
+
+    // ========================================================================
+    // 3. ACCIDENT, SALVAGE CLUES & CAT S / CAT N (OLD CAT C / CAT D) CARD
+    // ========================================================================
+    let writeOffCardHtml = "";
+    if (isUnlocked) {
+      const hasClues = mot.crashClues && mot.crashClues.length > 0;
+      const clueScanHtml = mot.hasMotData
+        ? hasClues
+          ? `
+          <div style="background:rgba(245,158,11,0.14);border:1px solid rgba(245,158,11,0.45);border-radius:10px;padding:10px 12px;margin-bottom:10px;">
+            <strong style="color:#fde68a;font-size:0.86rem;">⚠️ Cross-Reference Alert — ${mot.crashClues.length} Clue(s) Spotted in MOT History:</strong>
+            <ul class="mot-adv-list" style="margin:6px 0 0;">
+              ${mot.crashClues.map((cl) => `<li>${escapeHtml(cl)}</li>`).join("")}
             </ul>
-            <button type="button" id="inlineUnlockBtn" class="btn-primary" style="max-width:360px;">
-              Unlock 30-Day Pass — ${cfg.passPriceText} Once →
-            </button>
-            <div style="margin-top:8px;font-size:0.78rem;color:#94a3b8;">
-              Single payment · No subscription · Instant unlock
+          </div>
+        `
+          : `
+          <div style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.4);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:0.84rem;color:#a7f3d0;">
+            <strong>✅ Clean MOT Crash &amp; Gap Scan:</strong> Zero chassis/subframe damage advisories, SRS airbag lamp faults, plate swaps, or 16+ month off-road salvage gaps spotted across ${mot.totalTests} MOT test(s).
+          </div>
+        `
+        : "";
+
+      writeOffCardHtml = `
+        <div class="writeoff-card">
+          <div style="font-size:0.74rem;font-weight:800;color:#38bdf8;text-transform:uppercase;margin-bottom:6px;">
+            🛡 Accident, Cat S / Cat N (Old Cat C / Cat D) &amp; Finance Cross-Check
+          </div>
+          ${clueScanHtml}
+          <div style="font-size:0.83rem;color:#cbd5e1;line-height:1.5;margin-bottom:12px;">
+            <div style="margin-bottom:5px;">
+              • <strong>Cat S &amp; Old Cat C (Structural Write-Off):</strong> Check the front cover of the seller's paper <strong>V5C logbook ("3. Special Notes")</strong> — structural write-offs are permanently printed there.
+            </div>
+            <div>
+              • <strong>Cat N &amp; Old Cat D + Unpaid Finance + Stolen Check:</strong> Non-structural insurance write-offs (Cat D / Cat N), salvage auction photos, and outstanding finance are <em>not</em> held on MOT records or V5C logbooks — run a final MIAFTR insurance check on the 1 car you decide to buy:
             </div>
           </div>
+          <a href="${escapeHtml(affUrl)}" target="_blank" rel="noopener" class="btn-affiliate" style="width:100%;">
+            🛡 Check Official Cat C / D / S / N Write-Off, Salvage Photos &amp; Finance →
+          </a>
         </div>
       `;
     }
@@ -631,16 +854,13 @@
           <button type="button" id="printReportBtn" class="btn-secondary">
             🖨 Save / Print PDF Report
           </button>
-          <a href="${escapeHtml(affUrl)}" target="_blank" rel="noopener" class="btn-affiliate">
-            🛡 Check Stolen / Finance / Write-Off →
-          </a>
         </div>
       </div>
     `
       : `
       <div style="margin-top:14px;">
         <a href="${escapeHtml(affUrl)}" target="_blank" rel="noopener" class="btn-affiliate" style="width:100%;">
-          🛡 Run Official Stolen / Finance / Write-Off History Check →
+          🛡 Check Official Cat C / D / S / N Write-Off &amp; Finance →
         </a>
       </div>
     `;
@@ -653,7 +873,7 @@
           </div>
           <div class="verdict-title">${escapeHtml(report.verdictLabel)}</div>
           <div class="verdict-sub">
-            ${report.cliffCount} item(s) flagged · Avg ${v.avgAnnualMiles.toLocaleString()} mi/yr
+            ${report.cliffCount} mechanical cliff(s) flagged${mot.hasMotData ? ` · ${mot.isLatestClean ? "Clean Latest MOT" : mot.latestAdvisories.length + " MOT advisory item(s)"}` : ""} · Avg ${v.avgAnnualMiles.toLocaleString()} mi/yr
           </div>
         </div>
         <div class="exposure-box">
@@ -662,7 +882,9 @@
         </div>
       </div>
       ${offerStripHtml}
+      ${motAndXrefHtml}
       ${detailsHtml}
+      ${writeOffCardHtml}
       ${checklistHtml}
       ${haggleHtml}
     `;

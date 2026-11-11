@@ -1,5 +1,5 @@
 // ============================================================================
-// VERCEL SERVERLESS FUNCTION (£0/MO) — LIVE UK DVSA MOT PLATE LOOKUP
+// VERCEL SERVERLESS FUNCTION (£0/MO) — LIVE UK DVSA MOT + OPTIONAL DVLA VES LOOKUP
 // Endpoint: GET /api/check-plate?reg=AB18XYZ
 // CommonJS export — works out-of-the-box on all Vercel Node runtimes
 // ============================================================================
@@ -33,6 +33,28 @@ async function getDvsaBearerToken() {
   return cachedToken;
 }
 
+async function fetchOptionalDvlaVes(rawReg) {
+  if (!process.env.DVLA_VES_API_KEY) return null;
+  try {
+    const resp = await fetch(
+      "https://driver-vehicle-licensing.api.gov.uk/vehicle-enquiry/v1/vehicles",
+      {
+        method: "POST",
+        headers: {
+          "x-api-key": process.env.DVLA_VES_API_KEY,
+          "Content-Type": "application/json",
+          Accept: "application/json"
+        },
+        body: JSON.stringify({ registrationNumber: rawReg })
+      }
+    );
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch {
+    return null;
+  }
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
 
@@ -44,7 +66,10 @@ module.exports = async function handler(req, res) {
   );
 
   if (req.query && req.query.status === "1") {
-    return res.status(200).json({ live: hasDvsaKeys });
+    return res.status(200).json({
+      live: hasDvsaKeys,
+      dvlaVes: Boolean(process.env.DVLA_VES_API_KEY)
+    });
   }
 
   const rawReg = String((req.query && req.query.reg) || "")
@@ -63,7 +88,11 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const token = await getDvsaBearerToken();
+    const [token, dvlaData] = await Promise.all([
+      getDvsaBearerToken(),
+      fetchOptionalDvlaVes(rawReg)
+    ]);
+
     const dvsaResp = await fetch(
       "https://history.mot.api.gov.uk/v1/trade/vehicles/registration/" + encodeURIComponent(rawReg),
       {
@@ -77,7 +106,7 @@ module.exports = async function handler(req, res) {
 
     if (dvsaResp.status === 404) {
       return res.status(404).json({
-        error: "Plate not found in DVSA MOT register (cars under 3 years old may not have an MOT yet — use Quick Spec tab!)."
+        error: "Plate not found in DVSA MOT register (brand-new cars or unlisted cherished plates — try Select Car tab!)."
       });
     }
     if (!dvsaResp.ok) {
@@ -86,30 +115,74 @@ module.exports = async function handler(req, res) {
 
     const data = await dvsaResp.json();
     const vehicle = Array.isArray(data) ? data[0] : data;
+
     const motTests = Array.isArray(vehicle.motTests)
-      ? vehicle.motTests.map((t) => ({
-          date: t.completedDate,
-          mileage: Number(t.odometerValue) || 0,
-          result: t.testResult,
-          expiryDate: t.expiryDate,
-          advisories: Array.isArray(t.defects) ? t.defects.map((d) => d.text).filter(Boolean) : []
-        }))
+      ? vehicle.motTests.map((t) => {
+          const rawDefects = Array.isArray(t.defects) ? t.defects : [];
+          const advisories = rawDefects
+            .filter((d) => d && d.text && (d.type === "ADVISORY" || d.type === "MINOR" || !d.type))
+            .map((d) => d.text);
+          const failures = rawDefects
+            .filter((d) => d && d.text && (d.type === "FAIL" || d.type === "MAJOR" || d.type === "DANGEROUS" || d.type === "PRS"))
+            .map((d) => (d.dangerous ? "[DANGEROUS] " + d.text : d.text));
+
+          return {
+            date: t.completedDate || "",
+            mileage: Number(t.odometerValue) || 0,
+            unit: t.odometerUnit || "MI",
+            result: t.testResult || "",
+            expiryDate: t.expiryDate || "",
+            regAtTest: t.registrationAtTimeOfTest || "",
+            advisories,
+            failures,
+            allDefects: rawDefects
+              .filter((d) => d && d.text)
+              .map((d) => ({
+                text: d.text,
+                type: d.type || "ADVISORY",
+                dangerous: Boolean(d.dangerous)
+              }))
+          };
+        })
       : [];
 
-    const firstUsed = vehicle.firstUsedDate || vehicle.registrationDate || vehicle.manufactureDate || "";
+    const firstUsed =
+      vehicle.firstUsedDate ||
+      vehicle.registrationDate ||
+      vehicle.manufactureDate ||
+      (dvlaData && dvlaData.monthOfFirstRegistration ? dvlaData.monthOfFirstRegistration + "-01" : "");
+
+    const resolvedYear = firstUsed
+      ? parseInt(String(firstUsed).slice(0, 4), 10)
+      : (dvlaData && Number(dvlaData.yearOfManufacture)) || 2018;
+
     return res.status(200).json({
       mode: "LIVE_DVSA",
       vehicle: {
         registration: rawReg,
-        make: vehicle.make || "",
+        make: vehicle.make || (dvlaData && dvlaData.make) || "",
         model: vehicle.model || "",
         derivative: "",
-        year: firstUsed ? parseInt(String(firstUsed).slice(0, 4), 10) : 2018,
+        year: resolvedYear,
         firstUsedDate: firstUsed,
-        fuelType: vehicle.fuelType || "Petrol",
-        engineSizeCc: Number(vehicle.engineSize) || 0,
-        primaryColour: vehicle.primaryColour || "",
+        manufactureDate: vehicle.manufactureDate || "",
+        fuelType: vehicle.fuelType || (dvlaData && dvlaData.fuelType) || "Petrol",
+        engineSizeCc: Number(vehicle.engineSize) || (dvlaData && Number(dvlaData.engineCapacity)) || 0,
+        primaryColour: vehicle.primaryColour || (dvlaData && dvlaData.colour) || "",
+        hasOutstandingRecall: vehicle.hasOutstandingRecall || "Unknown",
         mileage: motTests.length > 0 ? motTests[0].mileage : 0,
+        dvlaCrossRef: dvlaData
+          ? {
+              taxStatus: dvlaData.taxStatus || "",
+              taxDueDate: dvlaData.taxDueDate || "",
+              dateOfLastV5CIssued: dvlaData.dateOfLastV5CIssued || "",
+              markedForExport: Boolean(dvlaData.markedForExport),
+              markedAsScrapped: Boolean(dvlaData.markedAsScrapped),
+              euroStatus: dvlaData.euroStatus || "",
+              co2Emissions: dvlaData.co2Emissions || 0,
+              artEndDate: dvlaData.artEndDate || ""
+            }
+          : null,
         motTests
       }
     });

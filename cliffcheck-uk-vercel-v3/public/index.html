@@ -168,17 +168,32 @@
           <div class="field">
             <label for="plateGearbox">Gearbox (optional)</label>
             <select id="plateGearbox">
-              <option value="">Auto-detect</option>
+              <option value="">Auto-detect / Manual</option>
               <option value="Manual">Manual</option>
               <option value="Automatic">Automatic / DSG / Powershift</option>
             </select>
           </div>
           <div class="field">
+            <label for="platePrice">Asking Price (£, optional)</label>
+            <input id="platePrice" type="number" placeholder="e.g. 12995 (for Offer Price)" min="0" max="250000" />
+          </div>
+          <div class="field">
             <label for="plateMileageOverride">Current Advert Mileage (optional)</label>
-            <input id="plateMileageOverride" type="number" placeholder="If higher than last MOT" min="0" max="400000" />
+            <input id="plateMileageOverride" type="number" placeholder="Blank = use latest MOT miles" min="0" max="400000" />
+          </div>
+          <div class="field">
+            <label for="plateDrive">Drive (optional)</label>
+            <select id="plateDrive">
+              <option value="2WD">2WD (Front / Rear)</option>
+              <option value="AWD">4WD / AWD / 4Motion / quattro</option>
+            </select>
           </div>
         </div>
-        <button type="submit" class="btn-primary" id="checkPlateBtn">Check UK Plate →</button>
+        <div id="plateErrorMsg" class="helper-note hidden" style="color:#fca5a5;font-weight:700;"></div>
+        <button type="submit" class="btn-primary" id="checkPlateBtn">Check UK Plate, MOT &amp; Repair Cliffs →</button>
+        <div style="text-align:center;font-size:0.78rem;color:#cbd5e1;margin-top:10px;">
+          🎁 <strong>First full check is 100% free</strong> · Checking multiple cars? <strong>£9.99 one-off</strong> for 30 days unlimited <em>(no subscription)</em>.
+        </div>
       </form>
 
       <!-- TUCKED-AWAY SAMPLE PREVIEW -->

@@ -545,6 +545,144 @@ body {
   border-radius: 0 8px 8px 0;
 }
 
+/* Official MOT, V5C Cross-Reference & Accident/Write-Off Cards */
+.mot-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.mot-status-banner {
+  border-radius: 11px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mot-status-banner.clean {
+  background: var(--green-bg);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+}
+
+.mot-status-banner.warn {
+  background: var(--amber-bg);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+}
+
+.mot-status-banner.fail {
+  background: var(--red-bg);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+}
+
+.xref-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 12px 0;
+}
+
+@media (max-width: 560px) {
+  .xref-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.xref-box {
+  background: #0b1120;
+  border: 1px solid rgba(36, 50, 77, 0.85);
+  border-radius: 9px;
+  padding: 9px 10px;
+}
+
+.xref-box small {
+  display: block;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.xref-box strong {
+  font-size: 0.86rem;
+  color: var(--text);
+  display: block;
+}
+
+.mot-adv-list {
+  margin: 8px 0 10px;
+  padding-left: 18px;
+  font-size: 0.84rem;
+  color: #fde68a;
+}
+
+.mot-adv-list li {
+  margin-bottom: 4px;
+}
+
+.mot-history-details {
+  margin-top: 10px;
+  border-top: 1px solid rgba(36, 50, 77, 0.65);
+  padding-top: 10px;
+}
+
+.mot-history-details summary {
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--yellow);
+}
+
+.mot-row {
+  margin-top: 9px;
+  padding: 10px 12px;
+  background: #0b1120;
+  border: 1px solid rgba(36, 50, 77, 0.75);
+  border-radius: 10px;
+  font-size: 0.82rem;
+}
+
+.mot-row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-weight: 800;
+}
+
+.pill-pass {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.pill-fail {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.writeoff-card {
+  margin-top: 14px;
+  background: linear-gradient(180deg, #132038 0%, #111827 100%);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 14px;
+  padding: 16px;
+}
+
 /* Interactive Forecourt Inspection Checklist */
 .checklist-card {
   margin-top: 14px;
