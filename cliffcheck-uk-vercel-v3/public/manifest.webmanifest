@@ -1,9 +1,16 @@
 {
   "name": "CliffCheck UK — Used Car Repair Cliff Detector",
-  "short_name": "CliffCheck",
+  "short_name": "CliffCheck UK",
   "description": "Spot hidden £1,500 wet-belt, timing-chain, DSG gearbox & £620 road-tax traps before you buy a used car.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0b1120",
-  "theme_color": "#facc15"
+  "theme_color": "#facc15",
+  "icons": [
+    {
+      "src": "/icon128.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    }
+  ]
 }

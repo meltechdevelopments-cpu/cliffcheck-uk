@@ -1,6 +1,6 @@
 // ============================================================================
-// CLIFFCHECK UK — CORE ENGINE, GEARBOX, DPF, TAX & HAGGLING INTELLIGENCE
-// Shared between the Phone/Web App and the Chrome Browser Add-On
+// CLIFFCHECK UK — CORE ENGINE, GEARBOX, AWD, DPF, EV, TAX & HAGGLING ENGINE
+// Shared between the Phone/Web App and the Mozilla Firefox & Chrome Add-Ons
 // ============================================================================
 (function (root) {
   const CURRENT_YEAR = 2026;
@@ -134,7 +134,19 @@
   };
 
   function norm(str) {
-    return String(str || "").trim().toUpperCase();
+    return String(str || "")
+      .trim()
+      .toUpperCase()
+      .replace(/Ë/g, "E")
+      .replace(/Š/g, "S");
+  }
+
+  function normMake(rawMake) {
+    const m = norm(rawMake);
+    if (m === "MERCEDES-BENZ") return "MERCEDES";
+    if (m === "DS AUTOMOBILES") return "DS";
+    if (m === "VW") return "VOLKSWAGEN";
+    return m;
   }
 
   function parseEngineLitres(cc, derivative) {
@@ -151,25 +163,29 @@
 
   // --------------------------------------------------------------------------
   // MAIN CLIFF ANALYSER
-  // Input: { registration, make, model, derivative, year, firstUsedDate,
-  //          fuelType, engineSizeCc, transmission, mileage, askingPrice, motTests }
   // --------------------------------------------------------------------------
   function analyzeVehicle(raw) {
-    const make = norm(raw.make);
+    const make = normMake(raw.make);
     const model = norm(raw.model);
     const deriv = norm(raw.derivative);
     const fullText = `${make} ${model} ${deriv}`;
     const fuel = norm(raw.fuelType);
     const isDiesel = fuel.includes("DIESEL");
-    const isHybrid = fuel.includes("HYBRID") || fullText.includes("HYBRID");
-    const isEV = (fuel === "ELECTRIC" || fullText.includes("ELECTRIC")) && !isHybrid;
+    const isHybrid = fuel.includes("HYBRID") || fullText.includes("HYBRID") || fullText.includes("PHEV") || fullText.includes("DM-I");
+    const isEV = (fuel === "ELECTRIC" || fullText.includes("ELECTRIC") || /\b(EV|ID\.3|ID\.4|ID\.5|ID\.7|MODEL 3|MODEL Y|LEAF|ZOE|ENYAQ|IONIQ 5|IONIQ 6|BORN|TAYCAN|POLESTAR 2|MG4)\b/.test(fullText)) && !isHybrid && !isDiesel;
     const year = Number(raw.year) || (raw.firstUsedDate ? parseInt(String(raw.firstUsedDate).slice(0, 4), 10) : 2018);
     const ageYears = Math.max(0, CURRENT_YEAR - year);
     const cc = Number(raw.engineSizeCc) || 0;
-    const litres = parseEngineLitres(cc, deriv);
+    const litres = isEV ? 0 : parseEngineLitres(cc, deriv);
     const mileage = Math.max(0, Number(raw.mileage) || 0);
-    const gearbox = norm(raw.transmission || (/(AUTO|DSG|STRONIC|S TRONIC|POWERSHIFT|TIPTRONIC|DCT|CVT|STEPTRONIC)/.test(fullText) ? "AUTOMATIC" : "MANUAL"));
-    const isAuto = gearbox.includes("AUTO") || /(DSG|POWERSHIFT|CVT|DCT|STRONIC)/.test(fullText);
+    const gearbox = norm(
+      raw.transmission ||
+        (/(AUTO|DSG|STRONIC|S TRONIC|POWERSHIFT|TIPTRONIC|DCT|CVT|STEPTRONIC|DUALOGIC|TCT|EAT8|EAT6|7G-DCT|9G-TRONIC)/.test(fullText)
+          ? "AUTOMATIC"
+          : "MANUAL")
+    );
+    const isAuto = isEV || gearbox.includes("AUTO") || /(DSG|POWERSHIFT|CVT|DCT|STRONIC|DUALOGIC|TCT|EAT8|EAT6)/.test(fullText);
+    const isAwd = Boolean(raw.awd) || /\b(4MOTION|QUATTRO|4WD|AWD|4X4|ALL4|XDRIVE|4MATIC|GOLF R|AUDI S3|RS3|TIGUAN R)\b/.test(fullText);
 
     const cliffs = [];
 
@@ -182,6 +198,7 @@
     if (
       make === "FORD" &&
       !isDiesel &&
+      !isEV &&
       (litres === 1.0 || (cc >= 990 && cc <= 1010) || fullText.includes("ECOBOOST"))
     ) {
       if (litres <= 1.1 || cc <= 1050 || !litres) {
@@ -198,18 +215,18 @@
             title: "Ford 1.0 EcoBoost Oil-Bath Wet Belt Cliff",
             costMin: 1050,
             costMax: 1550,
-            dueText: mileage >= dueMiles
-              ? `OVERDUE by ${(mileage - dueMiles).toLocaleString()} miles (unless already replaced)`
-              : ageYears >= dueYears
-              ? `AGE-DUE NOW (${ageYears} yrs old — rubber degrades in hot engine oil)`
-              : `Due in ~${Math.max(0, milesLeft).toLocaleString()} miles or ${Math.max(0, dueYears - ageYears)} yr(s)`,
+            dueText:
+              mileage >= dueMiles
+                ? `OVERDUE by ${(mileage - dueMiles).toLocaleString()} miles (unless seller has garage invoice)`
+                : ageYears >= dueYears
+                ? `AGE-DUE NOW (${ageYears} yrs old — unless seller has garage invoice)`
+                : `Due within ~${Math.max(0, milesLeft).toLocaleString()} miles or ${Math.max(0, dueYears - ageYears)} yr(s) unless already done`,
             plainReason:
               "This engine runs its rubber timing belt inside hot engine oil. Rubber fragments shed into the sump and clog the oil pick-up strainer ('EcoBoom' failure). UK Ford specialists strongly advise replacement + sump strainer clean by 6–7 years or 60,000 miles — NOT Ford's old 10-year brochure figure.",
             proofToAsk:
               "Itemised garage VAT invoice explicitly showing 'Wet Timing Belt Kit, Oil Pump Belt & Sump Off Strainer Clean' (a normal service stamp does NOT cover this)."
           });
         } else {
-          // 2020+ MHEV Chain-driven 1.0 EcoBoost still uses a wet oil-pump belt!
           cliffs.push({
             id: "ford-ecoboost-mhev-oilbelt",
             category: "Wet Oil-Pump Drive Belt",
@@ -217,26 +234,26 @@
             title: "2020+ EcoBoost Chain Model — Hidden Wet Oil-Pump Belt",
             costMin: 750,
             costMax: 1150,
-            dueText: mileage >= 65000 ? "Inspection / replacement due around 65k–80k miles" : "Watch from 60,000 miles / 6 years",
+            dueText: mileage >= 65000 ? "Inspection / replacement due around 65k–80k miles unless invoice-verified" : "Watch from 60,000 miles / 6 years",
             plainReason:
-              "Later 1.0 EcoBoost engines switched the main timing drive to a chain, BUT still use a rubber belt running in oil to drive the oil pump, which has a active recall/inspection history on select automatic builds.",
+              "Later 1.0 EcoBoost engines switched the main timing drive to a chain, BUT still use a rubber belt running in oil to drive the oil pump, which has recall/inspection history on select builds.",
             proofToAsk: "Full timely annual oil-change invoices using exact Ford WSS-M2C948-B 5W-20 oil + recall check."
           });
         }
       }
     }
 
-    // 1B. PSA / Stellantis 1.2 PureTech / Vauxhall 1.2 Turbo Wet Belt (2014–2023)
+    // 1B. PSA / Stellantis 1.2 PureTech / Vauxhall / Jeep / Toyota 1.2 Turbo Wet Belt (2014–2023)
     if (
       !timingMatched &&
       !isDiesel &&
-      /PEUGEOT|CITROEN|CITROËN|DS|VAUXHALL|OPEL|TOYOTA/.test(make) &&
+      !isEV &&
+      /PEUGEOT|CITROEN|DS|VAUXHALL|OPEL|TOYOTA|JEEP/.test(make) &&
       ((cc >= 1180 && cc <= 1220) || litres === 1.2 || fullText.includes("PURETECH")) &&
       year >= 2014 &&
       !(year >= 2024 && isHybrid)
     ) {
-      // Exclude old Vauxhall 1.2 4-cylinder Corsa E (1229cc)
-      if (cc !== 1229) {
+      if (cc !== 1229 && cc !== 1242) {
         timingMatched = true;
         const dueMiles = 62000;
         const dueYears = 6;
@@ -250,10 +267,10 @@
           costMax: 980,
           dueText:
             mileage >= dueMiles
-              ? `OVERDUE by ${(mileage - dueMiles).toLocaleString()} miles (revised 62k schedule)`
+              ? `OVERDUE by ${(mileage - dueMiles).toLocaleString()} miles unless seller has garage invoice`
               : ageYears >= dueYears
-              ? `AGE-DUE NOW (${ageYears} yrs old vs revised 6-year limit)`
-              : `Due in ~${Math.max(0, dueMiles - mileage).toLocaleString()} miles or ${Math.max(0, dueYears - ageYears)} yr(s)`,
+              ? `AGE-DUE NOW (${ageYears} yrs old vs revised 6-year schedule — unless invoice-verified)`
+              : `Due within ~${Math.max(0, dueMiles - mileage).toLocaleString()} miles or ${Math.max(0, dueYears - ageYears)} yr(s) unless already done`,
           plainReason:
             "Manufacturer cut the replacement schedule down to 6 years / 62,000 miles because the oil-bathed belt swells and sheds fibres that block the oil strainer and brake vacuum pump. You can actually spot belt cracking by shining a torch through the oil filler cap!",
           proofToAsk:
@@ -282,10 +299,10 @@
         costMax: 1400,
         dueText:
           mileage >= dueMiles || ageYears >= dueYears
-            ? "DUE / OVERDUE NOW unless invoice-verified"
+            ? "DUE / OVERDUE NOW unless seller has garage invoice"
             : `Approaching specialist 60k–70k / 6-yr cliff (${(dueMiles - mileage).toLocaleString()} mi left)`,
         plainReason:
-          "Ford slashed the 2.0 EcoBlue wet-belt interval after premature snaps wrote off engines well before 100k miles.",
+          "Ford shortened the 2.0 EcoBlue wet-belt interval after premature snaps wrote off engines well before 100k miles.",
         proofToAsk: "Dated VAT invoice for genuine Ford EcoBlue wet belt & tensioner replacement."
       });
     }
@@ -306,9 +323,9 @@
         title: "Honda 1.0 VTEC Turbo Oil-Bath Wet Belt",
         costMin: 950,
         costMax: 1450,
-        dueText: mileage >= 60000 || ageYears >= 6 ? "DUE NOW (6 yrs / 60k–75k miles)" : "Due at 6 years / ~60,000 miles",
+        dueText: mileage >= 60000 || ageYears >= 6 ? "DUE NOW (6 yrs / 60k–75k miles) unless seller has invoice" : "Due at 6 years / ~60,000 miles",
         plainReason:
-          "Most buyers assume all Hondas use bulletproof metal chains, but the 1.0 turbo uses a wet belt in oil that requires expensive specialist tooling.",
+          "Most buyers assume all Hondas use metal chains, but the 1.0 turbo uses a wet belt in oil that requires expensive specialist tooling.",
         proofToAsk: "Honda dealer or specialist wet-belt replacement invoice."
       });
     }
@@ -329,7 +346,7 @@
         title: "JLR 2.0 Ingenium Rear Timing Chain & Guide Risk",
         costMin: 1600,
         costMax: 2600,
-        dueText: mileage >= 55000 ? `HIGH-RISK WINDOW NOW (${mileage.toLocaleString()} miles)` : "Risk climbs sharply from 55,000 miles",
+        dueText: mileage >= 55000 ? `HIGH-RISK WINDOW NOW (${mileage.toLocaleString()} miles) unless upgraded` : "Risk climbs sharply from 55,000 miles",
         plainReason:
           "2-year / 21,000-mile factory oil intervals allow soot dilution to stretch the rear-mounted timing chains (gearbox-out job to replace).",
         proofToAsk:
@@ -337,7 +354,7 @@
       });
     }
 
-    // 1F. BMW / MINI 2.0d N47 / High-Mileage B47 Rear Chain
+    // 1F. BMW / MINI 2.0d N47 / B47 Rear Chain + MINI 1.6 Prince (N14/N18) Chain
     if (
       !timingMatched &&
       /BMW|MINI/.test(make) &&
@@ -350,15 +367,15 @@
           id: "bmw-n47-chain",
           category: "Rear Timing Chain Trap",
           severity: mileage >= 65000 ? "CRITICAL" : "HIGH",
-          title: "BMW N47 2.0d Rear Timing Chain Rattle Risk",
+          title: "BMW/MINI N47 2.0d Rear Timing Chain Rattle Risk",
           costMin: 1350,
           costMax: 2100,
-          dueText: `Active risk at ${mileage.toLocaleString()} miles unless already upgraded`,
+          dueText: `Active risk at ${mileage.toLocaleString()} miles unless seller has chain invoice`,
           plainReason:
             "The timing chain sits at the back of the engine against the bulkhead, requiring engine/gearbox removal when guides wear.",
           proofToAsk: "Cold-start metallic rattle check + proof of <10k mile oil services or chain replacement invoice."
         });
-      } else if (mileage >= 85000) {
+      } else if (mileage >= 80000) {
         cliffs.push({
           id: "bmw-b47-chain",
           category: "High-Mileage Chain & EGR Recall Check",
@@ -368,16 +385,37 @@
           costMax: 1500,
           dueText: "Inspect cold-start chain noise & confirm free BMW EGR recall completed",
           plainReason:
-            "Post-2015 B47 engines are much stronger than N47, but suffer coolant-leaking EGR coolers (recall item) and chain wear past 100k if run on 18k-mile oil intervals.",
+            "Post-2015 B47 engines are stronger than N47, but suffer coolant-leaking EGR coolers (recall item) and chain wear past 100k if run on 18k-mile oil intervals.",
           proofToAsk: "Confirm zero coolant loss + BMW EGR recall completion."
         });
       }
+    } else if (
+      !timingMatched &&
+      /MINI|PEUGEOT|CITROEN|DS/.test(make) &&
+      !isDiesel &&
+      (litres === 1.6 || (cc >= 1590 && cc <= 1605)) &&
+      year >= 2007 &&
+      year <= 2016
+    ) {
+      timingMatched = true;
+      cliffs.push({
+        id: "mini-psa-prince-chain",
+        category: "Prince 1.6 Timing Chain & Tensioner Trap",
+        severity: mileage >= 50000 ? "CRITICAL" : "HIGH",
+        title: "1.6 THP / MINI Cooper S (N14/N18) Timing Chain & Oil-Burn Check",
+        costMin: 850,
+        costMax: 1450,
+        dueText: `High-risk past 50,000 miles (currently ${mileage.toLocaleString()} mi) unless seller has chain invoice`,
+        plainReason:
+          "The joint BMW/PSA 1.6 Prince engine burns oil through valve stem seals and starves its hydraulic timing chain tensioner ('death rattle' on cold start).",
+        proofToAsk: "Start engine stone-cold to check for rattle + ask for timing chain kit & tensioner invoice."
+      });
     }
 
-    // 1G. Nissan / Renault 1.2 DIG-T / TCe Timing Chain & Oil Consumption (2013-2018)
+    // 1G. Nissan / Renault / Dacia / Mercedes 1.2 DIG-T / TCe Timing Chain (2013-2018)
     if (
       !timingMatched &&
-      /NISSAN|RENAULT|DACIA/.test(make) &&
+      /NISSAN|RENAULT|DACIA|MERCEDES/.test(make) &&
       !isDiesel &&
       (litres === 1.2 || (cc >= 1190 && cc <= 1205)) &&
       year >= 2013 &&
@@ -391,16 +429,61 @@
         title: "1.2 DIG-T / TCe Timing Chain Stretch & Piston Ring Risk",
         costMin: 1100,
         costMax: 1650,
-        dueText: mileage >= 45000 ? `HIGH-RISK WINDOW (${mileage.toLocaleString()} miles)` : "Watch closely from 45,000 miles",
+        dueText: mileage >= 45000 ? `HIGH-RISK WINDOW (${mileage.toLocaleString()} miles) unless upgraded` : "Watch closely from 45,000 miles",
         plainReason:
           "Well-known HRA2DDT / H5Ft 1.2 turbo issue where low-tension piston rings burn oil, starving the hydraulic timing chain tensioner.",
         proofToAsk: "Check dipstick oil level on arrival + listen for metallic rattle on cold start."
       });
     }
 
-    // 1H. Standard Dry Cambelt + Water Pump Schedule (VW/Audi/Skoda/SEAT TDI/TSI, Volvo, Ford TDCi, etc.)
+    // 1H. Mazda 2.2 Skyactiv-D Diesel Carbon / Injector Seal / Oil Strainer Cliff (2012-2021)
+    if (
+      !timingMatched &&
+      make === "MAZDA" &&
+      isDiesel &&
+      (litres === 2.2 || (cc >= 2180 && cc <= 2200))
+    ) {
+      timingMatched = true;
+      cliffs.push({
+        id: "mazda-22-skyactiv-d",
+        category: "Diesel Injector Washer & Sump Strainer Cliff",
+        severity: mileage >= 55000 ? "CRITICAL" : "HIGH",
+        title: "Mazda 2.2 Skyactiv-D Injector Seal & Oil Strainer Blockage Risk",
+        costMin: 850,
+        costMax: 1750,
+        dueText: mileage >= 55000 ? `CRITICAL CHECK AT ${mileage.toLocaleString()} MILES unless invoice-verified` : "Specialist preventive check due by 55k–60k miles",
+        plainReason:
+          "Copper injector washers leak combustion gas into the rocker cover, turning engine oil into carbon sludge that blocks the sump oil strainer and starves the turbo and camshaft.",
+        proofToAsk: "Specialist invoice for upgraded injector washers, intake decoke & sump strainer inspection."
+      });
+    }
+
+    // 1I. Fiat / Alfa Romeo / Jeep 1.4 MultiAir Filter & Brick Check
+    if (
+      !timingMatched &&
+      /FIAT|ALFA ROMEO|ABARTH|JEEP/.test(make) &&
+      !isDiesel &&
+      (litres === 1.4 || (cc >= 1360 && cc <= 1375)) &&
+      year >= 2010
+    ) {
+      timingMatched = true;
+      cliffs.push({
+        id: "fiat-alfa-14-cambelt-multiair",
+        category: "Cambelt & MultiAir Oil-Strainer Cliff",
+        severity: mileage >= 50000 || ageYears >= 5 ? "HIGH" : "MEDIUM",
+        title: "1.4 Turbo / MultiAir 5-Year Cambelt & Micro-Filter Cliff",
+        costMin: 480,
+        costMax: 950,
+        dueText: ageYears >= 5 || mileage >= 60000 ? "DUE BY 5-YEAR / 60k SCHEDULE unless seller has invoice" : "Due every 5 years / 60,000 miles",
+        plainReason:
+          "These 1.4 engines have a strict 5-year cambelt + water pump schedule, and MultiAir versions fail (£950+ actuator unit) if the tiny in-block MultiAir oil strainer wasn't cleaned using exact Selenia/C2 oil.",
+        proofToAsk: "Dated invoice for cambelt + water pump within the last 5 years + annual correct-spec oil changes."
+      });
+    }
+
+    // 1J. Standard Dry Cambelt + Water Pump Schedule (VW/Audi/Skoda/SEAT TDI/TSI, Volvo, Dacia, etc.)
     if (!timingMatched && !isEV) {
-      const likelyChainMakes = /TOYOTA|LEXUS|MAZDA|HYUNDAI|KIA|BMW|MERCEDES|SUZUKI/;
+      const likelyChainMakes = /TOYOTA|LEXUS|MAZDA|HYUNDAI|KIA|GENESIS|BMW|MERCEDES|SUZUKI|SUBARU|NISSAN|MITSUBISHI|HONDA|MG|TESLA|BYD|POLESTAR/;
       if (!likelyChainMakes.test(make)) {
         const dueMiles = 75000;
         const dueYears = 6;
@@ -414,22 +497,22 @@
             costMax: 850,
             dueText:
               mileage >= dueMiles || ageYears >= dueYears
-                ? `DUE BY AGE/MILEAGE (${ageYears} yrs / ${mileage.toLocaleString()} mi)`
-                : `Due within ~${Math.max(0, dueMiles - mileage).toLocaleString()} miles or ${Math.max(0, dueYears - ageYears)} yr(s)`,
+                ? `DUE BY AGE/MILEAGE (${ageYears} yrs / ${mileage.toLocaleString()} mi) unless seller has invoice`
+                : `Due within ~${Math.max(0, dueMiles - mileage).toLocaleString()} miles or ${Math.max(0, dueYears - ageYears)} yr(s) unless already done`,
             plainReason:
               "Sellers routinely trade cars in at 5–7 years / 55k–75k miles to avoid paying £550–£850 for a cambelt and water pump kit.",
-            proofToAsk: "Ask seller directly: 'Has the cambelt and water pump been done, and do you have the itemised invoice?'"
+            proofToAsk: "Ask seller directly: 'Has the cambelt and water pump been done, and do you have the itemised garage invoice?'"
           });
         }
       }
     }
 
     // ========================================================================
-    // CHECK 2: AUTOMATIC GEARBOX & AWD HALDEX FLUID CLIFFS
+    // CHECK 2: AUTOMATIC / MANUAL GEARBOX & AWD HALDEX FLUID CLIFFS
     // ========================================================================
     if (isAuto && !isEV && !isHybrid) {
-      if (/VOLKSWAGEN|VW|AUDI|SKODA|ŠKODA|SEAT|CUPRA/.test(make)) {
-        const isSmallDryDsg = !isDiesel && litres > 0 && litres <= 1.5;
+      if (/VOLKSWAGEN|AUDI|SKODA|SEAT|CUPRA|PORSCHE/.test(make)) {
+        const isSmallDryDsg = !isDiesel && litres > 0 && litres <= 1.5 && make !== "PORSCHE";
         if (isSmallDryDsg) {
           if (mileage >= 45000) {
             cliffs.push({
@@ -441,12 +524,11 @@
               costMax: 1650,
               dueText: "Test-drive judder check essential at current mileage",
               plainReason:
-                "1.0–1.5 petrol VWs/Audis use the sealed DQ200 dry-clutch DSG. Slipping between 1st–2nd gear or slow engagement in reverse signals worn clutch packs or mechatronic accumulator wear.",
+                "1.0–1.5 petrol VWs/Audis/Škodas/SEATs use the DQ200 dry-clutch DSG. Slipping between 1st–2nd gear or slow engagement in reverse signals worn clutch packs or mechatronic pressure loss.",
               proofToAsk: "Test uphill creep and brisk 1st-to-2nd pull when warm — walk away if there is any shudder."
             });
           }
         } else {
-          // Wet-clutch DSG (2.0 TSI / 2.0 TDI) — strict 38k-40k mile oil & filter cliff!
           const nextMultiple = Math.ceil(Math.max(1, mileage) / 40000) * 40000;
           const distToCliff = nextMultiple - mileage;
           const justPassed = mileage >= 38000 && mileage % 40000 < 12000;
@@ -455,50 +537,126 @@
               id: "vag-wet-dsg-service",
               category: "Automatic Gearbox Cliff",
               severity: mileage >= 37000 ? "HIGH" : "MEDIUM",
-              title: "DSG / S tronic 40,000-Mile Gearbox Oil & Filter Cliff",
+              title: "DSG / S tronic / PDK 40,000-Mile Gearbox Oil & Filter Cliff",
               costMin: 290,
-              costMax: 420,
+              costMax: 450,
               dueText:
                 mileage >= 38000
-                  ? `VERIFY 40k SERVICE DONE (current: ${mileage.toLocaleString()} mi)`
+                  ? `VERIFY 40k SERVICE DONE (current: ${mileage.toLocaleString()} mi) unless seller has invoice`
                   : `Due in ${(40000 - mileage).toLocaleString()} miles (at 40,000 mi)`,
               plainReason:
-                "Wet-clutch DSG gearboxes require fresh fluid and filter every 38,000–40,000 miles. Skipping it causes £1,500–£2,200 mechatronic valve-body failure.",
-              proofToAsk: "Specific invoice showing 'DSG Gearbox Oil & Filter Change' around 38k–40k (and 80k) miles."
+                "Wet-clutch dual-clutch gearboxes require fresh fluid and filter every 38,000–40,000 miles. Skipping it risks £1,500–£2,200 mechatronic valve-body failure.",
+              proofToAsk: "Specific invoice showing 'DSG / S tronic Gearbox Oil & Filter Change' around 38k–40k (and 80k) miles."
             });
           }
         }
-      } else if (make === "FORD" && year <= 2019) {
+      } else if (/FORD|VOLVO/.test(make) && year <= 2019 && (litres <= 2.0 || !litres)) {
         cliffs.push({
-          id: "ford-powershift-cliff",
+          id: "ford-volvo-powershift-cliff",
           category: "Powershift Gearbox Cliff",
           severity: "CRITICAL",
-          title: "Ford Powershift 37,500-Mile Oil & Filter Cliff",
+          title: "Powershift 37,500-Mile Gearbox Oil & Filter Cliff",
           costMin: 310,
           costMax: 430,
-          dueText: "Strict 3-year / 37,500-mile mandatory service (failure = £2,000+)",
+          dueText: "Strict 3-year / 37,500-mile mandatory service unless seller has receipts",
           plainReason:
-            "Ford Powershift dual-clutch automatics fail catastrophically (£1,800–£2,800) if even one 37,500-mile / 3-year fluid & filter change was skipped.",
+            "Powershift dual-clutch automatics fail (£1,800–£2,800) if even one 37,500-mile / 3-year fluid & filter change was skipped.",
           proofToAsk: "Demand documented Powershift oil & filter receipts every 37,500 miles — walk away without them."
+        });
+      } else if (/NISSAN/.test(make) && year <= 2019) {
+        cliffs.push({
+          id: "nissan-cvt-cliff",
+          category: "Xtronic / CVT Gearbox Check",
+          severity: mileage >= 50000 ? "HIGH" : "MEDIUM",
+          title: "Nissan CVT / Xtronic Fluid & Judder Check",
+          costMin: 320,
+          costMax: 2200,
+          dueText: "Check smooth acceleration under load + NS-3 CVT fluid history",
+          plainReason:
+            "Nissan Juke/Qashqai/Micra CVT automatics suffer belt/stepper-motor judder if fluid is never refreshed past 40k–50k miles.",
+          proofToAsk: "Test-drive warm at 30–50 mph gentle throttle for rev flaring or shudder + check CVT fluid receipt."
         });
       } else if (mileage >= 52000) {
         cliffs.push({
           id: "auto-zf-fluid-cliff",
           category: "Automatic Gearbox Fluid Window",
           severity: "MEDIUM",
-          title: "60,000-Mile Automatic Transmission Fluid & Pan Service",
+          title: "60,000-Mile Automatic Transmission Fluid & Filter Service",
           costMin: 380,
           costMax: 580,
-          dueText: mileage >= 60000 ? "Recommended now (60k–75k specialist window)" : `Recommended in ~${(60000 - mileage).toLocaleString()} miles`,
+          dueText: mileage >= 60000 ? "Recommended now (60k–75k specialist window) unless already done" : `Recommended in ~${(60000 - mileage).toLocaleString()} miles`,
           plainReason:
             "Car brochures call automatic gearbox oil 'sealed for life', but gearbox maker ZF explicitly advises fresh fluid & pan filter at 60,000–75,000 miles to prevent harsh shifts.",
-          proofToAsk: "Check for smooth cold & hot shifts; factor £450 preventative gearbox service if over 60k miles."
+          proofToAsk: "Check for smooth cold & hot shifts; factor £450 preventative gearbox service if over 60k miles without receipt."
+        });
+      }
+    } else if (!isAuto && /VAUXHALL|ALFA ROMEO|FIAT/.test(make) && litres >= 1.2 && litres <= 1.9 && year <= 2019 && mileage >= 45000) {
+      // M32 6-speed manual bearing whine check
+      cliffs.push({
+        id: "m32-manual-bearing-check",
+        category: "M32 6-Speed Manual Bearing Check",
+        severity: "HIGH",
+        title: "M32 6-Speed Manual Gearbox Bearing Movement Check",
+        costMin: 550,
+        costMax: 950,
+        dueText: "Essential 1st/5th/6th gear lever movement test on viewing",
+        plainReason:
+          "Many 6-speed manual Corsa/Astra/Mokka/MiTo models use the M32 gearbox, famous for end-case bearing wear. Caught early it's a £600 bearing rebuild; left late it cracks the casing.",
+        proofToAsk: "On test drive, watch the gearstick when lifting on/off the accelerator in 1st, 5th & 6th gear — it must NOT jerk back and forth or whine."
+      });
+    }
+
+    // Haldex / AWD Rear Coupling Oil & Pump Strainer (VW Tiguan 4Motion, Golf R, Audi S3/Q3, Volvo AWD, Evoque)
+    if (isAwd && !isEV && mileage >= 28000) {
+      cliffs.push({
+        id: "haldex-awd-cliff",
+        category: "4WD / Haldex Coupling Service Cliff",
+        severity: mileage >= 38000 ? "MEDIUM" : "LOW",
+        title: "30k–40k Mile AWD / Haldex Coupling Oil & Pump Gauze Clean",
+        costMin: 165,
+        costMax: 290,
+        dueText: `Due every 3 years / 30k–40k miles unless seller has garage invoice`,
+        plainReason:
+          "On 4Motion / quattro / 4WD SUVs & hot hatches, main dealers often change Haldex oil without removing the pump to clean its tiny gauze strainer — burning out the £450 AWD pump.",
+        proofToAsk: "Ask for Haldex / AWD coupling service invoice including pump gauze filter clean."
+      });
+    }
+
+    // ========================================================================
+    // CHECK 3: EV BATTERY COOLANT & REDUCTION GEAR CHECK (ELECTRIC CARS)
+    // ========================================================================
+    if (isEV && (mileage >= 35000 || ageYears >= 3)) {
+      if (/HYUNDAI|KIA|GENESIS/.test(make) && year <= 2023) {
+        cliffs.push({
+          id: "kia-hyundai-ev-coolant",
+          category: "EV Low-Conductivity Battery Coolant Cliff",
+          severity: "HIGH",
+          title: "EV BSC-1/BSC-2 Low-Conductivity Battery Coolant Flush",
+          costMin: 320,
+          costMax: 580,
+          dueText: "Scheduled every 3–4 years / ~37,500–40,000 miles unless dealer invoice shown",
+          plainReason:
+            "Kia Niro EV / Kona Electric / IONIQ models require a special low-conductivity blue battery coolant flush using dealer vacuum equipment — sellers often skip this £350–£550 service right before selling.",
+          proofToAsk: "Ask seller for main-dealer service invoice explicitly listing 'Low-Conductivity Battery Coolant Replacement'."
+        });
+      } else {
+        cliffs.push({
+          id: "ev-brake-suspension-tyre",
+          category: "EV Suspension Bush, Brake Disc & SoH Check",
+          severity: "MEDIUM",
+          title: "EV Battery Health (SoH %) & Heavy-Kerb Suspension Check",
+          costMin: 250,
+          costMax: 750,
+          dueText: "Verify Battery State of Health (SoH) certificate before deposit",
+          plainReason:
+            "Electric vehicles avoid timing belts, but heavy battery weight wears lower suspension arms early and regenerative braking lets rear brake discs rust and fail MOTs from under-use.",
+          proofToAsk: "Request printed Battery State-of-Health (SoH %) diagnostic readout + inspect inner tyre edges & rear brake discs for heavy rust pitting."
         });
       }
     }
 
     // ========================================================================
-    // CHECK 3: DIESEL LOW-MILEAGE SHORT-TRIP DPF & ADBLUE TRAP
+    // CHECK 4: DIESEL LOW-MILEAGE SHORT-TRIP DPF & ADBLUE TRAP
     // ========================================================================
     const avgAnnualMiles = ageYears > 0 ? Math.round(mileage / ageYears) : mileage;
     if (isDiesel && year >= 2015 && ageYears >= 3 && avgAnnualMiles > 0 && avgAnnualMiles < 6800) {
@@ -512,14 +670,14 @@
         dueText: "Immediate DPF soot-load & AdBlue check advised before purchase",
         plainReason:
           `Buyers think low mileage is good, but averaging just ${avgAnnualMiles.toLocaleString()} miles/yr on a modern Euro 6 diesel means short school/shop runs where the exhaust never gets hot enough to clear the DPF filter or prevent AdBlue crystal blockages.`,
-        proofToAsk: "Plug in a £20 OBD scanner on viewing to check 'DPF Soot Mass' & confirm zero AdBlue countdown resets."
+        proofToAsk: "Plug in a £20 OBD scanner on viewing to check 'DPF Soot Mass' & confirm zero AdBlue countdown warnings."
       });
     }
 
     // ========================================================================
-    // CHECK 4: UK £40,000+ LIST-PRICE "EXPENSIVE CAR ROAD TAX" TRAP (YEARS 2-6)
+    // CHECK 5: UK £40,000+ LIST-PRICE "EXPENSIVE CAR ROAD TAX" TRAP (YEARS 2-6)
     // ========================================================================
-    const premiumMakes = /BMW|MERCEDES|AUDI|LAND ROVER|RANGE ROVER|JAGUAR|PORSCHE|VOLVO|LEXUS|TESLA|POLESTAR|ALFA ROMEO/;
+    const premiumMakes = /BMW|MERCEDES|AUDI|LAND ROVER|RANGE ROVER|JAGUAR|PORSCHE|VOLVO|LEXUS|TESLA|POLESTAR|ALFA ROMEO|MASERATI|GENESIS|LOTUS|ASTON MARTIN|BENTLEY/;
     const askingPrice = Number(raw.askingPrice) || 0;
     if (
       year >= 2021 &&
@@ -534,19 +692,18 @@
         title: `Likely £620/yr '£40k New List Price' Road Tax (${yearsOfExtraTaxLeft} yr(s) left)`,
         costMin: 425 * yearsOfExtraTaxLeft,
         costMax: 425 * yearsOfExtraTaxLeft,
-        dueText: `Extra £425/yr supplement on top of £195 tax until ${year + 6}`,
+        dueText: `Extra £425/yr supplement on top of £195 tax until ${year + 6} (if original list > £40k)`,
         plainReason:
-          "Even if this used car only costs £20k–£28k today, UK DVLA charges ~£620/year road tax until Year 6 if its brand-new sticker price (including paint & optional packs!) was £40,000.01 or higher.",
+          "Even if this used car only costs £20k–£28k today, UK DVLA charges ~£620/year road tax until Year 6 if its brand-new sticker price (including paint & optional packs — and from April 2025, new EVs too!) was over £40,000.",
         proofToAsk: "Ask dealer to confirm exact annual VED tax band or check GOV.UK Vehicle Tax status before paying deposit."
       });
     }
 
     // ========================================================================
-    // CHECK 5: MOT HISTORY MILEAGE DROP (CLOCKING) & OIL-LEAK ADVISORIES
+    // CHECK 6: MOT HISTORY MILEAGE DROP (CLOCKING) & OIL-LEAK ADVISORIES
     // ========================================================================
     const motTests = Array.isArray(raw.motTests) ? raw.motTests : [];
     if (motTests.length >= 2) {
-      // Sort oldest to newest
       const sorted = [...motTests]
         .filter((t) => Number(t.mileage || t.odometerValue) > 0)
         .sort((a, b) => String(a.date || a.completedDate).localeCompare(String(b.date || b.completedDate)));
@@ -571,7 +728,6 @@
       }
     }
 
-    // Check MOT advisories for oil leaks / undertrays / corrosion
     const latestAdvisories = motTests[0] && Array.isArray(motTests[0].advisories) ? motTests[0].advisories : [];
     const oilOrRustAdv = latestAdvisories.find((a) => /oil|corro|rust|subframe|leak|timing/i.test(a));
     if (oilOrRustAdv) {
@@ -613,6 +769,39 @@
         ? 0
         : Math.round((totalMin * 0.65) / 50) * 50;
 
+    const recommendedOfferPrice =
+      askingPrice > 0 ? Math.max(500, askingPrice - suggestedDiscount) : 0;
+
+    // Tailored 5-Point Forecourt Inspection Checklist (tickable on phone at viewing!)
+    const forecourtChecklist = [];
+
+    if (cliffs.some((c) => c.id === "psa-puretech-wetbelt")) {
+      forecourtChecklist.push("Unscrew oil filler cap & shine phone torch onto the wet belt — walk away if belt edges look cracked, swollen, or frayed.");
+    } else if (!isEV) {
+      forecourtChecklist.push("Touch bonnet BEFORE engine is started — confirm it is stone-cold so any 2–3 sec cold-start timing rattle isn't hidden.");
+    } else {
+      forecourtChecklist.push("Ask for printed Battery State-of-Health (SoH %) readout & test both slow AC and rapid DC charge port Flap/pins.");
+    }
+
+    if (isAuto && !isEV) {
+      forecourtChecklist.push("Gearbox test: check smooth creep in Reverse on a slight slope + brisk 1st-to-2nd shift once warm (zero judder or flare).");
+    } else if (!isEV) {
+      forecourtChecklist.push("Clutch test: at 30 mph in 4th gear, press accelerator firmly — revs must rise in lockstep with road speed (no slip).");
+    } else {
+      forecourtChecklist.push("Inspect rear brake discs through alloy wheels for heavy rust pitting (common MOT fail on EVs due to regen braking).");
+    }
+
+    if (isAwd) {
+      forecourtChecklist.push("4WD / Haldex check: do a slow full-lock turn in a car park — ensure zero rear-axle skipping, thumping, or binding.");
+    } else if (isDiesel) {
+      forecourtChecklist.push("Switch ignition to Stage 2 (before cranking): confirm DPF, Engine & AdBlue lights illuminate and go out cleanly after start.");
+    } else {
+      forecourtChecklist.push("Check coolant expansion bottle when cold: level on MAX, clean pink/blue/green colour, zero oily film or mayonnaise under oil cap.");
+    }
+
+    forecourtChecklist.push("Demand itemised garage VAT invoices (showing actual parts fitted) — a rubber stamp in a book does NOT prove belt/gearbox work.");
+    forecourtChecklist.push("Match the 17-digit VIN at the base of the windscreen against the V5C logbook & check 2 working remote keys are present.");
+
     const carLabel = `${year} ${make} ${model}`.trim();
     const hagglingScript =
       cliffs.length === 0
@@ -638,17 +827,114 @@
       totalExposureMin: totalMin,
       totalExposureMax: totalMax,
       suggestedDiscount,
+      recommendedOfferPrice,
+      forecourtChecklist,
       cliffs,
       hagglingScript
     };
   }
 
+  // Parse pasted text from AutoTrader App, Facebook Marketplace, Gumtree or eBay Motors!
+  function parseAdvertText(rawText, carDirectory) {
+    const text = String(rawText || "").trim();
+    if (!text) return null;
+    const upper = text.toUpperCase();
+
+    let foundMake = "";
+    let foundModel = "";
+    const dir = carDirectory && carDirectory.makesModels ? carDirectory.makesModels : {};
+    const makeKeys = Object.keys(dir).sort((a, b) => b.length - a.length);
+
+    const aliases = {
+      "VW ": "VOLKSWAGEN",
+      "MERCEDES-BENZ": "MERCEDES",
+      "MERC ": "MERCEDES",
+      "RANGE ROVER": "LAND ROVER",
+      "CITROËN": "CITROEN",
+      "ŠKODA": "SKODA"
+    };
+
+    for (const [alias, target] of Object.entries(aliases)) {
+      if (upper.includes(alias)) {
+        foundMake = target;
+        break;
+      }
+    }
+
+    if (!foundMake) {
+      for (const mk of makeKeys) {
+        if (new RegExp("\\b" + mk.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i").test(text)) {
+          foundMake = mk;
+          break;
+        }
+      }
+    }
+
+    if (foundMake && dir[foundMake]) {
+      const modelsSorted = [...dir[foundMake]].sort((a, b) => b.length - a.length);
+      for (const mod of modelsSorted) {
+        if (new RegExp("\\b" + mod.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i").test(text)) {
+          foundModel = mod;
+          break;
+        }
+      }
+    }
+
+    const yearMatch =
+      text.match(/\b(200[1-9]|201[0-9]|202[0-6])\s*\((?:\d{2}\s*reg|Private)/i) ||
+      text.match(/\b(200[3-9]|201[0-9]|202[0-6])\b/);
+    const year = yearMatch ? parseInt(yearMatch[1], 10) : 0;
+
+    let mileage = 0;
+    const milesExplicit = text.match(/\b([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{4,6})\s*(?:miles|mi\b|mls)/i);
+    const milesK = text.match(/\b([0-9]{1,3}(?:\.[0-9])?)\s*k\s*(?:miles|mi)?\b/i);
+    if (milesExplicit) {
+      mileage = parseInt(milesExplicit[1].replace(/,/g, ""), 10) || 0;
+    } else if (milesK) {
+      mileage = Math.round(parseFloat(milesK[1]) * 1000);
+    }
+
+    const litreMatch = text.match(
+      /\b([0-6]\.[0-9])\s*(?:L|litre|T|TSI|TFSI|TDI|EcoBoost|PureTech|EcoBlue|Skyactiv|VTEC|MultiAir|THP|DIG-T|TCe|d|i)?\b/i
+    );
+    const litres = litreMatch ? parseFloat(litreMatch[1]) : 0;
+
+    let fuelType = "Petrol";
+    if (/\b(Diesel|TDI|BlueHDi|EcoBlue|dCi|CDTi|TD4|SD4|Skyactiv-D)\b/i.test(text)) fuelType = "Diesel";
+    else if (/\b(Hybrid|PHEV|Plug-in|e-Hybrid|Self-Charging)\b/i.test(text)) fuelType = "Hybrid Electric";
+    else if (/\b(Electric|100%\s*Electric|Zero\s*Emissions|\bEV\b|kWh)\b/i.test(text) && !litres) fuelType = "Electric";
+
+    const transmission = /\b(Automatic|Auto|DSG|S\s*tronic|Powershift|Tiptronic|CVT|DCT|Steptronic|EAT8|EAT6)\b/i.test(text)
+      ? "Automatic"
+      : "Manual";
+
+    const awd = /\b(4Motion|quattro|4WD|AWD|xDrive|4MATIC|ALL4|4x4)\b/i.test(text);
+
+    const priceMatch = text.match(/£\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{3,6})/);
+    const askingPrice = priceMatch ? parseInt(priceMatch[1].replace(/,/g, ""), 10) || 0 : 0;
+
+    return {
+      make: foundMake,
+      model: foundModel,
+      derivative: text.slice(0, 120),
+      year,
+      fuelType,
+      litres,
+      engineSizeCc: Math.round(litres * 1000),
+      transmission,
+      awd,
+      mileage,
+      askingPrice
+    };
+  }
+
   root.CliffEngine = {
     DEMO_VEHICLES,
-    analyzeVehicle
+    analyzeVehicle,
+    parseAdvertText
   };
 
   if (typeof module !== "undefined" && module.exports) {
     module.exports = root.CliffEngine;
   }
-})(typeof self !== "undefined" ? self : window);
+})(typeof globalThis !== "undefined" ? globalThis : window);

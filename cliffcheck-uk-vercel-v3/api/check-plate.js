@@ -35,6 +35,18 @@ async function getDvsaBearerToken() {
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
+
+  const hasDvsaKeys = Boolean(
+    process.env.MOT_API_KEY &&
+      process.env.MOT_CLIENT_ID &&
+      process.env.MOT_CLIENT_SECRET &&
+      process.env.MOT_TOKEN_URL
+  );
+
+  if (req.query && req.query.status === "1") {
+    return res.status(200).json({ live: hasDvsaKeys });
+  }
+
   const rawReg = String((req.query && req.query.reg) || "")
     .replace(/\s+/g, "")
     .toUpperCase();
@@ -43,15 +55,10 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: "Please enter a valid UK registration plate." });
   }
 
-  if (
-    !process.env.MOT_API_KEY ||
-    !process.env.MOT_CLIENT_ID ||
-    !process.env.MOT_CLIENT_SECRET ||
-    !process.env.MOT_TOKEN_URL
-  ) {
+  if (!hasDvsaKeys) {
     return res.status(200).json({
       mode: "DEMO_FALLBACK",
-      message: "DVSA live API keys not yet added in Vercel Environment Variables."
+      message: "Use Car Spec or Paste Advert while plate register syncs."
     });
   }
 

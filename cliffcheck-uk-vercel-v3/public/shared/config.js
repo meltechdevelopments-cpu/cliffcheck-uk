@@ -1,10 +1,10 @@
 // ============================================================================
-// CLIFFCHECK UK — FOUNDER CONFIGURATION (POLAR.SH READY!)
-// Only paste your Polar Organization ID, Polar Checkout Link & Affiliate ID!
+// CLIFFCHECK UK — FOUNDER CONFIGURATION (POLAR.SH + CARVERTICAL READY!)
 // ============================================================================
 (function (root) {
   const CLIFFCHECK_CONFIG = {
     brandName: "CliffCheck UK",
+    siteUrl: "https://cliffcheck-uk.vercel.app",
     passPriceText: "£9.99",
     passDurationText: "30-Day Car-Hunter Pass",
 
@@ -16,11 +16,15 @@
     polarOrganizationId: "f54cc5b7-b9ad-443e-9c8c-60a686a6ac1c",
     checkoutUrl: "https://buy.polar.sh/polar_cl_tXauD5HrRHsmVMa5FHZQETxkp50WND4iLzxPw2wX0le",
 
-    // 3. Instant-approval UK Car History Check Affiliate ID (MotorCheck UK / Total Car Check):
-    motorCheckAffiliateId: "cliffcheck",
+    // 3. Car History Check Affiliate Link:
+    // As soon as carVertical (Everflow) approves your application, paste your tracking URL inside the quotes below!
     carVerticalAffiliateUrl: "",
+    motorCheckAffiliateId: "cliffcheck",
 
-    // 4. Founder test code so YOU can test unlocking Pro right now:
+    // 4. Optional Mozilla Firefox Add-ons Store URL (paste once Mozilla signs your free add-on!):
+    firefoxAmoStoreUrl: "",
+
+    // 5. Founder test code so YOU can test unlocking Pro right now:
     founderTestCode: "VIP-TEST-2026"
   };
 
@@ -43,7 +47,7 @@
     ) {
       return {
         valid: false,
-        error: "Paste your Polar Organization ID into config.js first (or test right now with VIP-TEST-2026)."
+        error: "Paste your Polar Organization ID into config.js first."
       };
     }
 
@@ -84,14 +88,16 @@
 
   CLIFFCHECK_CONFIG.buildHistoryAffiliateUrl = function (reg) {
     const cleanReg = (reg || "").replace(/\s+/g, "").toUpperCase();
-    if (CLIFFCHECK_CONFIG.carVerticalAffiliateUrl) {
-      return CLIFFCHECK_CONFIG.carVerticalAffiliateUrl + encodeURIComponent(cleanReg);
+    const cv = String(CLIFFCHECK_CONFIG.carVerticalAffiliateUrl || "").trim();
+    if (cv) {
+      if (cv.endsWith("=")) {
+        return cv + encodeURIComponent(cleanReg);
+      }
+      return cv;
     }
     return (
-      "https://www.motorcheck.co.uk/free-car-check?vrm=" +
-      encodeURIComponent(cleanReg || "ENTERREG") +
-      "#" +
-      encodeURIComponent(CLIFFCHECK_CONFIG.motorCheckAffiliateId)
+      "https://www.carvertical.com/gb" +
+      (cleanReg && cleanReg !== "SPECCHECK" ? "?vin=" + encodeURIComponent(cleanReg) : "")
     );
   };
 
