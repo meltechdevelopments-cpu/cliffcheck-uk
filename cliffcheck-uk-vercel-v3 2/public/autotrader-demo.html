@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ford Fiesta 1.0T EcoBoost Zetec 5dr — Simulated Marketplace Listing</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f1f5f9;
+      color: #0f172a;
+      padding-bottom: 120px;
+    }
+    .sim-banner {
+      background: #0b1120;
+      color: #f8fafc;
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 0.85rem;
+    }
+    .sim-banner a {
+      color: #facc15;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .wrap {
+      max-width: 920px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+    .ad-card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+    }
+    .switcher {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .sw-btn {
+      background: #e2e8f0;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.82rem;
+    }
+    .sw-btn.active {
+      background: #1d4ed8;
+      color: #fff;
+    }
+    .spec-pills {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 14px 0;
+    }
+    .pill {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      padding: 6px 11px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .price {
+      font-size: 2rem;
+      font-weight: 900;
+      color: #0f172a;
+    }
+  </style>
+</head>
+<body>
+  <div class="sim-banner">
+    <div>
+      <strong>🦊 Live Mozilla Firefox Add-On Simulator:</strong> Look at the <strong>bottom-right corner</strong> to see how the CliffCheck Add-On pops up automatically on real AutoTrader, eBay &amp; CarGurus ads!
+    </div>
+    <a href="/">← Back to CliffCheck UK</a>
+  </div>
+
+  <div class="wrap">
+    <div class="switcher">
+      <button class="sw-btn active" data-car="fiesta">Ad #1: 2018 Ford Fiesta 1.0 EcoBoost (57,420 mi)</button>
+      <button class="sw-btn" data-car="golf">Ad #2: 2019 VW Golf GTI 2.0 TSI DSG (38,900 mi)</button>
+      <button class="sw-btn" data-car="evoque">Ad #3: 2018 Range Rover Evoque 2.0D (68,500 mi)</button>
+    </div>
+
+    <div class="ad-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+        <div>
+          <span style="background:#dcfce7;color:#166534;font-weight:800;font-size:0.75rem;padding:4px 8px;border-radius:5px;">"GOOD PRICE" · 12 MONTHS MOT</span>
+          <h1 id="adTitle" style="margin:8px 0 4px;font-size:1.6rem;">Ford Fiesta 1.0T EcoBoost Zetec Euro 6 (s/s) 5dr</h1>
+          <div id="adSub" style="color:#64748b;font-weight:600;">2018 (18 reg) · Hatchback</div>
+        </div>
+        <div id="adPrice" class="price">£7,495</div>
+      </div>
+
+      <div id="adPills" class="spec-pills">
+        <span class="pill">57,420 miles</span>
+        <span class="pill">Petrol</span>
+        <span class="pill">1.0L Engine</span>
+        <span class="pill">Manual</span>
+        <span class="pill">2 Owners</span>
+      </div>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-top:16px;">
+        <strong>Seller's Description:</strong>
+        <p id="adDesc" style="margin:8px 0 0;color:#334155;line-height:1.6;">
+          Lovely clean example, drives spot on with 12 months fresh MOT and service book stamped! HPI clear, 2 keys, ULEZ compliant, cheap insurance and great MPG. First to see will buy! (Notice: Seller makes ZERO mention of the £1,250 wet timing belt due right now at 57k miles!)
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Structured JSON-LD just like real AutoTrader UK pages -->
+  <script id="ldVehicle" type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Vehicle",
+      "brand": { "name": "Ford" },
+      "model": "Fiesta",
+      "name": "1.0T EcoBoost Zetec 5dr",
+      "vehicleModelDate": "2018",
+      "fuelType": "Petrol",
+      "vehicleTransmission": "Manual",
+      "mileageFromOdometer": { "value": 57420 },
+      "vehicleEngine": { "engineDisplacement": { "value": "1.0" } },
+      "vehicleIdentificationNumber": "FD18ECO",
+      "offers": { "price": "7495" }
+    }
+  </script>
+
+  <script src="/shared/config.js"></script>
+  <script src="/shared/cliff-engine.js"></script>
+  <script src="/chrome-content-preview.js"></script>
+  <script>
+    const ADS = {
+      fiesta: {
+        title: "Ford Fiesta 1.0T EcoBoost Zetec Euro 6 (s/s) 5dr",
+        sub: "2018 (18 reg) · Hatchback",
+        price: "£7,495",
+        pills: ["57,420 miles", "Petrol", "1.0L Engine", "Manual"],
+        desc: "Lovely clean example, drives spot on with 12 months fresh MOT and service book stamped! First to see will buy! (Notice how the seller makes zero mention of the £1,250 wet timing belt due right now!)",
+        ld: {
+          "@type": "Vehicle",
+          brand: { name: "Ford" },
+          model: "Fiesta",
+          name: "1.0T EcoBoost Zetec 5dr",
+          vehicleModelDate: "2018",
+          fuelType: "Petrol",
+          vehicleTransmission: "Manual",
+          mileageFromOdometer: { value: 57420 },
+          vehicleEngine: { engineDisplacement: { value: "1.0" } },
+          vehicleIdentificationNumber: "FD18ECO",
+          offers: { price: "7495" }
+        }
+      },
+      golf: {
+        title: "Volkswagen Golf 2.0 TSI GTI Performance DSG Euro 6 5dr",
+        sub: "2019 (19 reg) · Hatchback",
+        price: "£18,495",
+        pills: ["38,900 miles", "Petrol", "2.0L Engine", "Automatic DSG"],
+        desc: "Stunning Tornado Red Golf GTI DSG! Low 38,900 miles, immaculate alloys, fresh MOT! (Notice: Right at the 38k–40k mile mandatory £350 DSG gearbox oil & filter cliff!)",
+        ld: {
+          "@type": "Vehicle",
+          brand: { name: "Volkswagen" },
+          model: "Golf",
+          name: "2.0 TSI GTI Performance DSG",
+          vehicleModelDate: "2019",
+          fuelType: "Petrol",
+          vehicleTransmission: "Automatic",
+          mileageFromOdometer: { value: 38900 },
+          vehicleEngine: { engineDisplacement: { value: "2.0" } },
+          vehicleIdentificationNumber: "VW19DSG",
+          offers: { price: "18495" }
+        }
+      },
+      evoque: {
+        title: "Land Rover Range Rover Evoque 2.0 TD4 HSE Dynamic Auto 4WD",
+        sub: "2018 (18 reg) · SUV",
+        price: "£14,250",
+        pills: ["68,500 miles", "Diesel", "2.0L Ingenium", "Automatic"],
+        desc: "Panoramic roof, Meridian sound, black pack, drives great! (Notice: 2.0 Ingenium rear timing chain danger window + short-trip DPF check!)",
+        ld: {
+          "@type": "Vehicle",
+          brand: { name: "Land Rover" },
+          model: "Range Rover Evoque",
+          name: "2.0 TD4 HSE Dynamic Auto",
+          vehicleModelDate: "2018",
+          fuelType: "Diesel",
+          vehicleTransmission: "Automatic",
+          mileageFromOdometer: { value: 68500 },
+          vehicleEngine: { engineDisplacement: { value: "2.0" } },
+          vehicleIdentificationNumber: "LR18ING",
+          offers: { price: "14250" }
+        }
+      }
+    };
+
+    document.querySelectorAll(".sw-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".sw-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        const key = btn.getAttribute("data-car");
+        const ad = ADS[key];
+        document.getElementById("adTitle").textContent = ad.title;
+        document.getElementById("adSub").textContent = ad.sub;
+        document.getElementById("adPrice").textContent = ad.price;
+        document.getElementById("adPills").innerHTML = ad.pills.map((p) => `<span class="pill">${p}</span>`).join("");
+        document.getElementById("adDesc").textContent = ad.desc;
+        document.getElementById("ldVehicle").textContent = JSON.stringify(ad.ld);
+        const w = document.getElementById("cliffcheck-floating-widget");
+        if (w) w.remove();
+        location.hash = key;
+      });
+    });
+  </script>
+</body>
+</html>
