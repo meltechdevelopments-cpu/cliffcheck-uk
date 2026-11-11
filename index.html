@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Spot hidden £1,500 wet-belt, timing-chain, DSG gearbox, DPF & £620 UK road-tax bills before you buy a used car — plus forecourt checklist & haggling script." />
+  <meta property="og:title" content="CliffCheck UK — Used-Car Repair Cliff & Haggling Checker" />
+  <meta property="og:description" content="Check any UK used car in seconds. Flags wet timing belts, rear chains, DSG gearbox services, viewing checklist & target offer price." />
+  <meta property="og:url" content="https://cliffcheck-uk.vercel.app" />
+  <meta property="og:type" content="website" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CliffCheck UK" />
+  <link rel="apple-touch-icon" href="/icon128.png" />
+  <link rel="icon" type="image/png" href="/icon128.png" />
+  <title>CliffCheck UK — Spot £1,500 Hidden Used-Car Repair Bills Before You Buy</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <!-- TOP PROMINENT PHONE HOME-SCREEN BAR -->
+  <div class="phone-top-strip">
+    <div class="phone-top-inner">
+      <span class="phone-top-text">📱 Viewing cars on your phone? Pin CliffCheck to your Home Screen for 1-tap forecourt checks.</span>
+      <button id="installPhoneBtn" type="button" class="btn-phone-top">📲 Add App to Phone</button>
+    </div>
+  </div>
+
+  <!-- ULTRA-CLEAN HEADER -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a href="/" class="brand">
+        <span class="brand-icon">GB</span>
+        <span>CliffCheck <small style="color:#94a3b8;font-weight:600;">UK</small></span>
+      </a>
+      <button id="openPassModalBtn" type="button" class="pass-pill">🎁 1 Free Check · 30-Day Pass £9.99</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <h1>Spot Hidden £1,500 Repair Bills Before You Buy</h1>
+      <p>
+        Check any UK used car for wet timing belts, timing chains, gearbox cliffs &amp; £620 road-tax traps — plus get a forecourt checklist &amp; ready-to-send haggling message.
+      </p>
+    </section>
+
+    <section class="search-card">
+      <div class="mode-tabs">
+        <!-- Auto-revealed automatically as soon as live DVSA MOT keys are set in Vercel -->
+        <button id="tabPlate" class="mode-tab hidden" type="button">🇬🇧 UK Plate</button>
+        <button id="tabSpec" class="mode-tab active" type="button">🚗 Select Car</button>
+        <button id="tabPaste" class="mode-tab" type="button">📋 Paste Car Advert</button>
+      </div>
+
+      <!-- TAB 1 (DEFAULT): CLEAN AUTOTRADER UK MAKE & MODEL SELECTOR -->
+      <form id="specForm">
+        <div class="spec-grid">
+          <div class="field">
+            <label for="specMake">Make *</label>
+            <select id="specMake" required>
+              <option value="">— Select Make —</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="specModelSelect">Model *</label>
+            <select id="specModelSelect" required disabled>
+              <option value="">— Select Make First —</option>
+            </select>
+            <input
+              id="specModelCustom"
+              type="text"
+              class="hidden"
+              placeholder="Type model name..."
+              style="margin-top:6px;"
+            />
+          </div>
+          <div class="field">
+            <label for="specYear">Registration Year *</label>
+            <input id="specYear" type="number" placeholder="e.g. 2019" min="2001" max="2026" required />
+          </div>
+          <div class="field">
+            <label for="specMileage">Mileage *</label>
+            <input id="specMileage" type="number" placeholder="e.g. 58000" min="0" max="400000" required />
+          </div>
+          <div class="field">
+            <label for="specFuel">Fuel *</label>
+            <select id="specFuel" required>
+              <option value="">— Select Fuel —</option>
+              <option value="Petrol">Petrol</option>
+              <option value="Diesel">Diesel</option>
+              <option value="Hybrid Electric">Hybrid / Plug-in Hybrid</option>
+              <option value="Electric">Electric (EV)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="specLitres">Engine Size in Litres (0 if EV) *</label>
+            <input id="specLitres" type="number" step="0.1" placeholder="e.g. 2.0" min="0" max="6.8" required />
+          </div>
+          <div class="field">
+            <label for="specGearbox">Gearbox *</label>
+            <select id="specGearbox" required>
+              <option value="">— Select Gearbox —</option>
+              <option value="Manual">Manual</option>
+              <option value="Automatic">Automatic / DSG / Powershift</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="specPrice">Asking Price (£, optional)</label>
+            <input id="specPrice" type="number" placeholder="e.g. 12995" min="0" max="250000" />
+          </div>
+          <div class="field">
+            <label for="specTrim">Trim / Badge (optional)</label>
+            <input id="specTrim" type="text" placeholder="e.g. R-Line, EcoBoost, 4Motion" />
+          </div>
+          <div class="field">
+            <label for="specDrive">Drive</label>
+            <select id="specDrive">
+              <option value="2WD">2WD (Front / Rear)</option>
+              <option value="AWD">4WD / AWD / 4Motion / quattro</option>
+            </select>
+          </div>
+        </div>
+        <div class="helper-note">
+          Private / cherished plate? Always enter the car's actual registration year from the advert, not the plate digits.
+        </div>
+        <button type="submit" class="btn-primary">Check Car &amp; Build Haggling Script →</button>
+        <div style="text-align:center;font-size:0.78rem;color:#cbd5e1;margin-top:10px;">
+          🎁 <strong>First full check is 100% free</strong> · Checking multiple cars? <strong>£9.99 one-off</strong> for 30 days unlimited <em>(no subscription)</em>.
+        </div>
+      </form>
+
+      <!-- TAB 2: 1-PASTE ADVERT ANALYSER (AutoTrader App, Facebook Marketplace, Gumtree, eBay) -->
+      <form id="pasteForm" class="hidden">
+        <label for="advertPasteInput" style="display:block;font-size:0.8rem;font-weight:700;color:#cbd5e1;margin-bottom:6px;">
+          Paste any car title &amp; details from AutoTrader, Facebook Marketplace, Gumtree or eBay:
+        </label>
+        <textarea
+          id="advertPasteInput"
+          class="paste-textarea"
+          placeholder="Example: 2019 Volkswagen Tiguan 2.0 TDI R-Line DSG 4Motion, 58,400 miles, Automatic, £16,995..."
+          required
+        ></textarea>
+        <div id="pasteErrorMsg" class="helper-note hidden" style="color:#fca5a5;"></div>
+        <button type="submit" class="btn-primary">Analyse Pasted Advert →</button>
+        <div style="text-align:center;font-size:0.78rem;color:#cbd5e1;margin-top:10px;">
+          🎁 <strong>First full check is 100% free</strong> · Checking multiple cars? <strong>£9.99 one-off</strong> for 30 days unlimited <em>(no subscription)</em>.
+        </div>
+      </form>
+
+      <!-- TAB 3 (AUTO-ENABLED WHEN LIVE DVSA KEYS ARE PRESENT): UK NUMBER PLATE -->
+      <form id="plateForm" class="hidden">
+        <div class="uk-plate-wrap">
+          <div class="uk-plate-gb">
+            <span>🇬🇧</span>
+            <span>UK</span>
+          </div>
+          <input
+            id="regInput"
+            class="uk-plate-input"
+            type="text"
+            maxlength="8"
+            placeholder="ENTER REG"
+            autocomplete="off"
+          />
+        </div>
+        <div class="spec-grid">
+          <div class="field">
+            <label for="plateGearbox">Gearbox (optional)</label>
+            <select id="plateGearbox">
+              <option value="">Auto-detect</option>
+              <option value="Manual">Manual</option>
+              <option value="Automatic">Automatic / DSG / Powershift</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="plateMileageOverride">Current Advert Mileage (optional)</label>
+            <input id="plateMileageOverride" type="number" placeholder="If higher than last MOT" min="0" max="400000" />
+          </div>
+        </div>
+        <button type="submit" class="btn-primary" id="checkPlateBtn">Check UK Plate →</button>
+      </form>
+
+      <!-- TUCKED-AWAY SAMPLE PREVIEW -->
+      <details class="sample-details">
+        <summary>Or tap an example UK car to preview a sample report ▾</summary>
+        <div class="sample-chips">
+          <button type="button" class="chip" data-sample="FD18ECO">2018 Fiesta 1.0 EcoBoost (57k)</button>
+          <button type="button" class="chip" data-sample="PG19PTC">2019 Peugeot 2008 PureTech (54k)</button>
+          <button type="button" class="chip" data-sample="VW19DSG">2019 Golf GTI DSG (38.9k)</button>
+          <button type="button" class="chip" data-sample="LR18ING">2018 Evoque 2.0D Ingenium (68k)</button>
+          <button type="button" class="chip" data-sample="BM22LUX">2022 BMW 320d (£620 Tax Trap)</button>
+          <button type="button" class="chip" data-sample="TY20HYB">2020 Corolla Hybrid (Clean)</button>
+        </div>
+      </details>
+    </section>
+
+    <!-- SAVED CAR SHORTLIST (AUTO-APPEARS AFTER CHECKING CARS) -->
+    <section id="shortlistBar" class="shortlist-bar hidden">
+      <div class="shortlist-title">
+        <span>📋 Your Checked Car Shortlist</span>
+        <button id="clearShortlistBtn" type="button" style="background:none;border:none;color:#94a3b8;font-size:0.72rem;cursor:pointer;">Clear</button>
+      </div>
+      <div id="shortlistPills" class="shortlist-pills"></div>
+    </section>
+
+    <!-- RESULTS CONTAINER -->
+    <section id="resultsSection" class="results-wrap hidden"></section>
+
+    <!-- MOZILLA FIREFOX ADD-ON CARD (FIREFOX ONLY!) -->
+    <section class="firefox-banner">
+      <div style="max-width:460px;">
+        <div style="font-size:0.74rem;font-weight:800;color:#facc15;text-transform:uppercase;">Free Desktop Browser Add-On</div>
+        <div style="font-weight:800;font-size:1rem;margin:2px 0;">Browsing on Mozilla Firefox?</div>
+        <div style="font-size:0.84rem;color:#94a3b8;">
+          Automatically overlays repair cliffs &amp; haggling scripts onto AutoTrader UK, eBay Motors &amp; CarGurus listings.
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a id="firefoxDownloadBtn" href="/cliffcheck-firefox-addon.zip" download class="btn-secondary" style="border-color:#facc15;color:#facc15;">
+          🦊 Get Firefox Add-On
+        </a>
+        <a href="/autotrader-demo.html" class="btn-secondary">Live Demo</a>
+      </div>
+    </section>
+
+    <footer class="disclaimer">
+      <p>
+        CliffCheck surfaces manufacturer and UK specialist maintenance schedules by vehicle age, mileage, and engine family. Always request itemised garage VAT invoices from the seller to verify whether scheduled work was already completed.
+      </p>
+      <p style="margin-top:8px;">
+        <a href="/privacy.html" style="color:#94a3b8;text-decoration:underline;">Privacy Policy &amp; Data Notice</a> ·
+        <a href="/autotrader-demo.html" style="color:#94a3b8;text-decoration:underline;">Firefox Add-On Live Demo</a>
+      </p>
+    </footer>
+  </main>
+
+  <!-- PASS ACTIVATION / UNLOCK MODAL -->
+  <div id="passModal" class="modal-backdrop">
+    <div class="modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h3 style="margin:0;">Unlock 30-Day Car-Hunter Pass</h3>
+        <button id="closePassModalBtn" style="background:none;border:none;color:#94a3b8;font-size:1.3rem;cursor:pointer;">✕</button>
+      </div>
+      <p style="font-size:0.88rem;color:#cbd5e1;margin-top:0;">
+        One <strong>£9.99 single payment</strong> (no subscription) unlocks unlimited car checks, forecourt checklists, saved shortlist &amp; haggling scripts on <strong>your Phone + Mozilla Firefox Add-On</strong> for 30 days.
+      </p>
+      <a id="buyPassLink" href="#" target="_blank" rel="noopener" class="btn-primary" style="display:block;text-align:center;text-decoration:none;margin-bottom:16px;">
+        Get 30-Day Pass — £9.99 (Apple Pay / Card) →
+      </a>
+
+      <div style="border-top:1px solid #24324d;padding-top:14px;">
+        <label style="display:block;font-size:0.8rem;font-weight:700;color:#94a3b8;margin-bottom:6px;">
+          Already have a Pass? Paste your Pass Code from your receipt:
+        </label>
+        <div style="display:flex;gap:8px;">
+          <input
+            id="licenseKeyInput"
+            type="text"
+            placeholder="e.g. CLIFF-XXXX-XXXX"
+            style="flex:1;background:#0b1120;border:1px solid #24324d;color:#fff;border-radius:9px;padding:10px;"
+          />
+          <button id="activatePassBtn" type="button" class="btn-secondary" style="border-color:#10b981;color:#34d399;">
+            Activate
+          </button>
+        </div>
+        <div id="passStatusMsg" style="font-size:0.8rem;margin-top:8px;color:#94a3b8;">
+          <em>Works across your Phone &amp; Firefox Add-On.</em>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHONE HOME SCREEN INSTALL MODAL -->
+  <div id="phoneModal" class="modal-backdrop">
+    <div class="modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h3 style="margin:0;">📲 Add CliffCheck to Your Phone</h3>
+        <button id="closePhoneModalBtn" style="background:none;border:none;color:#94a3b8;font-size:1.3rem;cursor:pointer;">✕</button>
+      </div>
+      <p style="font-size:0.88rem;color:#cbd5e1;line-height:1.5;">
+        Pin CliffCheck UK straight onto your phone's Home Screen so it's ready whenever you view a car:
+      </p>
+      <div style="background:#0b1120;border:1px solid #24324d;border-radius:10px;padding:13px;font-size:0.85rem;color:#e2e8f0;line-height:1.6;">
+        <div><strong>🍎 iPhone (Safari):</strong> Tap <strong>Share</strong> (square with arrow at the bottom) → tap <strong>Add to Home Screen</strong>.</div>
+        <div style="margin-top:8px;"><strong>🤖 Android:</strong> Tap the <strong>⋮ browser menu</strong> (top right) → tap <strong>Add to Home screen / Install app</strong>.</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/shared/config.js"></script>
+  <script src="/shared/uk-cars.js"></script>
+  <script src="/shared/cliff-engine.js"></script>
+  <script src="/cliffcheck-ui.js"></script>
+</body>
+</html>
