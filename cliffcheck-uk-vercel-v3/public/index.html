@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CliffCheck UK — Spot £1,500 Hidden Used-Car Repair Cliffs Before You Buy</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a href="/" class="brand">
+        <span class="brand-icon">GB</span>
+        <span>CliffCheck <small style="color:#94a3b8;font-weight:600;">UK</small></span>
+      </a>
+      <div class="top-actions">
+        <a href="/autotrader-demo.html" class="demo-link">💻 Preview Laptop AutoTrader Add-On</a>
+        <button id="openPassModalBtn" class="pass-pill">🔑 Enter / Unlock 30-Day Pass</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <span class="eyebrow">Works on Any Phone &amp; Chrome Desktop</span>
+      <h1>Spot the £1,500 Repair Bill Hiding Behind a "Clean MOT"</h1>
+      <p>
+        Sellers dump used cars right before wet timing belts, rear timing chains, DSG gearbox services &amp; £620 road-tax traps hit. Check any UK car in 3 seconds &amp; get your exact haggling script.
+      </p>
+    </section>
+
+    <section class="search-card">
+      <div class="mode-tabs">
+        <button id="tabPlate" class="mode-tab active" type="button">🇬🇧 Check by UK Number Plate</button>
+        <button id="tabSpec" class="mode-tab" type="button">⚡ No Plate Shown? Quick Spec</button>
+      </div>
+
+      <!-- MODE 1: UK NUMBER PLATE CHECK -->
+      <form id="plateForm">
+        <div class="uk-plate-wrap">
+          <div class="uk-plate-gb">
+            <span>🇬🇧</span>
+            <span>UK</span>
+          </div>
+          <input
+            id="regInput"
+            class="uk-plate-input"
+            type="text"
+            maxlength="8"
+            placeholder="FD18 ECO"
+            autocomplete="off"
+            required
+          />
+        </div>
+
+        <div class="quick-options-row">
+          <div class="field">
+            <label for="plateGearbox">Gearbox (helps check DSG/Auto cliffs)</label>
+            <select id="plateGearbox">
+              <option value="">Auto-detect</option>
+              <option value="Manual">Manual</option>
+              <option value="Automatic">Automatic / DSG / Powershift</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="plateMileageOverride">Advert Mileage (optional if higher than MOT)</label>
+            <input id="plateMileageOverride" type="number" placeholder="e.g. 57400" min="0" max="400000" />
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary" id="checkPlateBtn">
+          Check Hidden Repair Cliffs Free →
+        </button>
+      </form>
+
+      <!-- MODE 2: NO-PLATE QUICK SPEC CHECK (Works on dealer-covered plates & brand-new listings!) -->
+      <form id="specForm" class="hidden">
+        <div class="spec-grid">
+          <div class="field">
+            <label for="specMake">Make</label>
+            <select id="specMake">
+              <option value="FORD">Ford</option>
+              <option value="PEUGEOT">Peugeot</option>
+              <option value="VAUXHALL">Vauxhall</option>
+              <option value="VOLKSWAGEN">Volkswagen</option>
+              <option value="AUDI">Audi</option>
+              <option value="BMW">BMW</option>
+              <option value="LAND ROVER">Land Rover / Range Rover</option>
+              <option value="CITROEN">Citroën</option>
+              <option value="NISSAN">Nissan</option>
+              <option value="HONDA">Honda</option>
+              <option value="MERCEDES">Mercedes-Benz</option>
+              <option value="TOYOTA">Toyota</option>
+              <option value="KIA">Kia</option>
+              <option value="HYUNDAI">Hyundai</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="specModel">Model &amp; Trim (optional)</label>
+            <input id="specModel" type="text" placeholder="e.g. Fiesta 1.0 EcoBoost" value="Fiesta 1.0 EcoBoost" />
+          </div>
+          <div class="field">
+            <label for="specYear">Year</label>
+            <input id="specYear" type="number" value="2018" min="2005" max="2026" />
+          </div>
+          <div class="field">
+            <label for="specLitres">Engine Size (Litres)</label>
+            <input id="specLitres" type="number" step="0.1" value="1.0" min="0" max="6.5" />
+          </div>
+          <div class="field">
+            <label for="specFuel">Fuel</label>
+            <select id="specFuel">
+              <option value="Petrol">Petrol</option>
+              <option value="Diesel">Diesel</option>
+              <option value="Hybrid Electric">Hybrid</option>
+              <option value="Electric">Electric (EV)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="specGearbox">Gearbox</label>
+            <select id="specGearbox">
+              <option value="Manual">Manual</option>
+              <option value="Automatic">Automatic / DSG / Powershift</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="specMileage">Current Mileage</label>
+            <input id="specMileage" type="number" value="57400" min="0" max="400000" />
+          </div>
+          <div class="field">
+            <label for="specPrice">Asking Price (£)</label>
+            <input id="specPrice" type="number" value="7495" min="0" max="250000" />
+          </div>
+        </div>
+        <button type="submit" class="btn-primary">Run Instant Spec Cliff Check →</button>
+      </form>
+
+      <!-- 1-TAP TEST PLATES FOR INSTANT DEMO -->
+      <div class="sample-bar">
+        <span class="sample-label">👆 Tap a real UK example car to test right now:</span>
+        <div class="sample-chips">
+          <button type="button" class="chip" data-sample="FD18ECO">FD18 ECO · Fiesta 1.0 EcoBoost (57k)</button>
+          <button type="button" class="chip" data-sample="PG19PTC">PG19 PTC · Peugeot 1.2 PureTech (54k)</button>
+          <button type="button" class="chip" data-sample="VW19DSG">VW19 DSG · Golf GTI DSG (38.9k)</button>
+          <button type="button" class="chip" data-sample="LR18ING">LR18 ING · Evoque 2.0D Ingenium (68k)</button>
+          <button type="button" class="chip" data-sample="BM22LUX">BM22 LUX · BMW 320d (£620 Tax Trap)</button>
+          <button type="button" class="chip" data-sample="TY20HYB">TY20 HYB · Corolla Hybrid (Clean)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESULTS CONTAINER -->
+    <section id="resultsSection" class="results-wrap hidden"></section>
+
+    <!-- VALUE / INSTALL CHROME EXTENSION BANNER -->
+    <section class="cliff-item" style="margin-top:24px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
+      <div>
+        <strong style="color:#facc15;font-size:0.82rem;text-transform:uppercase;">Included With Your Pass</strong>
+        <div style="font-weight:800;font-size:1.02rem;margin:2px 0;">Browsing on a Laptop? Add the Automatic AutoTrader Badge</div>
+        <div style="font-size:0.85rem;color:#94a3b8;">Shows upcoming repair bills &amp; haggling scripts automatically on AutoTrader UK, eBay Motors &amp; CarGurus.</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a href="/autotrader-demo.html" class="btn-secondary">See Live AutoTrader Demo</a>
+        <a href="/cliffcheck-chrome-extension.zip" download class="btn-secondary" style="border-color:#facc15;color:#facc15;">⬇ Download Chrome Add-On (.zip)</a>
+      </div>
+    </section>
+
+    <footer class="disclaimer">
+      <p>
+        <strong>Schedule Guidance Notice:</strong> CliffCheck flags manufacturer and UK independent-specialist maintenance intervals based on vehicle age, mileage, and engine family. It cannot see paper invoices in a seller's glovebox — always ask the seller for itemised VAT receipts proving scheduled work was already completed. Contains public sector information licensed under the Open Government Licence v3.0.
+      </p>
+    </footer>
+  </main>
+
+  <!-- PASS ACTIVATION / UNLOCK MODAL -->
+  <div id="passModal" class="modal-backdrop">
+    <div class="modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h3 style="margin:0;">Unlock 30-Day Car-Hunter Pass</h3>
+        <button id="closePassModalBtn" style="background:none;border:none;color:#94a3b8;font-size:1.3rem;cursor:pointer;">✕</button>
+      </div>
+      <p style="font-size:0.88rem;color:#cbd5e1;margin-top:0;">
+        One <strong>£9.99 single payment</strong> (no recurring subscription!) unlocks unlimited car checks on <strong>both your Phone &amp; Laptop Chrome Add-On</strong> for 30 days.
+      </p>
+      <a id="buyPassLink" href="#" target="_blank" rel="noopener" class="btn-primary" style="display:block;text-align:center;text-decoration:none;margin-bottom:16px;">
+        Get Instant 30-Day Pass — £9.99 (Apple Pay / Card) →
+      </a>
+
+      <div style="border-top:1px solid #283655;padding-top:14px;">
+        <label style="display:block;font-size:0.8rem;font-weight:700;color:#94a3b8;margin-bottom:6px;">
+          Already bought a Pass? Paste your Pass Code from your receipt:
+        </label>
+        <div style="display:flex;gap:8px;">
+          <input
+            id="licenseKeyInput"
+            type="text"
+            placeholder="e.g. VIP-TEST-2026"
+            style="flex:1;background:#0d1425;border:1px solid #283655;color:#fff;border-radius:9px;padding:10px;"
+          />
+          <button id="activatePassBtn" type="button" class="btn-secondary" style="border-color:#10b981;color:#34d399;">
+            Activate
+          </button>
+        </div>
+        <div id="passStatusMsg" style="font-size:0.8rem;margin-top:8px;color:#94a3b8;">
+          <em>Founder preview tip: enter <strong>VIP-TEST-2026</strong> to test unlocking Pro right now!</em>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/shared/config.js"></script>
+  <script src="/shared/cliff-engine.js"></script>
+  <script src="/cliffcheck-ui.js"></script>
+</body>
+</html>
