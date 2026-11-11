@@ -855,6 +855,130 @@ body {
   max-width: 430px;
   width: 100%;
   padding: 22px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal.modal-wide {
+  max-width: 680px;
+}
+
+/* Compact 3-Tile Running Cost & Owner Care Glance Strip */
+.quick-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 560px) {
+  .quick-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+.quick-tile {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.quick-tile.good {
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.quick-tile.warn {
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.quick-tile.charge {
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.quick-tile small {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.quick-tile strong {
+  display: block;
+  font-size: 0.86rem;
+  margin-top: 2px;
+}
+
+.quick-tile span {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+/* Mini Compare Button + Table */
+.btn-compare-mini {
+  background: rgba(250, 204, 21, 0.14);
+  color: var(--yellow);
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.73rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.compare-table th,
+.compare-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 9px 8px;
+  text-align: left;
+}
+
+.compare-table th {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.compare-winner {
+  background: rgba(16, 185, 129, 0.09);
+}
+
+/* Private-Sale Receipt Preview & Print-Only Sheet */
+.receipt-preview-box {
+  background: #0b1120;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 13px;
+  font-size: 0.82rem;
+  color: #e2e8f0;
+  line-height: 1.55;
+}
+
+.printable-receipt-only {
+  display: none;
+}
+
+@media print {
+  body.printing-receipt > *:not(#printableReceiptOnly) {
+    display: none !important;
+  }
+  body.printing-receipt #printableReceiptOnly {
+    display: block !important;
+    color: #000 !important;
+    background: #fff !important;
+    padding: 20px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
 }
 
 .disclaimer {

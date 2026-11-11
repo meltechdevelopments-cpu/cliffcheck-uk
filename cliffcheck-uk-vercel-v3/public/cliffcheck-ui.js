@@ -262,6 +262,17 @@
     renderShortlist();
   }
 
+  const openCompareBtn = document.getElementById("openCompareBtn");
+  const compareModal = document.getElementById("compareModal");
+  const closeCompareModalBtn = document.getElementById("closeCompareModalBtn");
+  const compareTableWrap = document.getElementById("compareTableWrap");
+
+  const receiptModal = document.getElementById("receiptModal");
+  const closeReceiptModalBtn = document.getElementById("closeReceiptModalBtn");
+  const receiptPreviewBox = document.getElementById("receiptPreviewBox");
+  const printSaleReceiptBtn = document.getElementById("printSaleReceiptBtn");
+  const printableReceiptOnly = document.getElementById("printableReceiptOnly");
+
   function renderShortlist() {
     const list = getShortlist();
     if (!shortlistBar || !shortlistPills) return;
@@ -270,6 +281,14 @@
       return;
     }
     shortlistBar.classList.remove("hidden");
+    if (openCompareBtn) {
+      if (list.length >= 2) {
+        openCompareBtn.textContent = `⚖️ Compare (${list.length})`;
+        openCompareBtn.classList.remove("hidden");
+      } else {
+        openCompareBtn.classList.add("hidden");
+      }
+    }
     shortlistPills.innerHTML = "";
     list.forEach((item) => {
       const btn = document.createElement("button");
@@ -280,10 +299,97 @@
       btn.addEventListener("click", () => {
         const rep = engine.analyzeVehicle(item.vehicleData);
         lastReport = rep;
-        renderReport(rep, hasActivePass());
+        renderReport(rep, hasActivePass() || getFreeUsedCount() <= cfg.freeChecksAllowedWeb);
         resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
       });
       shortlistPills.appendChild(btn);
+    });
+  }
+
+  function openCompareModal() {
+    if (!hasActivePass() && getFreeUsedCount() >= cfg.freeChecksAllowedWeb) {
+      passModal.classList.add("open");
+      return;
+    }
+    const list = getShortlist();
+    if (!compareModal || !compareTableWrap || list.length < 2) return;
+
+    const evaluated = list.map((item) => {
+      const rep = engine.analyzeVehicle(item.vehicleData);
+      const mot = rep.motReport || {};
+      const rc = rep.runningCosts || {};
+      const riskScore =
+        rep.totalExposureMin +
+        (mot.repeatNeglect ? mot.repeatNeglect.length * 350 : 0) +
+        (mot.latestAdvisories ? mot.latestAdvisories.length * 120 : 0) +
+        (rc.ulezStatus === "charge" ? 600 : 0);
+      return { item, rep, mot, rc, riskScore };
+    });
+
+    const minScore = Math.min(...evaluated.map((x) => x.riskScore));
+
+    compareTableWrap.innerHTML = `
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Car</th>
+            <th>Miles</th>
+            <th>MOT &amp; Care</th>
+            <th>Bill Risk</th>
+            <th>ULEZ / Tax</th>
+            <th>Target Offer</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${evaluated
+            .map((row) => {
+              const isBest = row.riskScore === minScore;
+              const v = row.rep.vehicleSummary;
+              const regTxt =
+                v.registration && !/CHECK/.test(v.registration) ? ` <small style="color:#facc15;">[${escapeHtml(v.registration)}]</small>` : "";
+              const billTxt =
+                row.rep.cliffCount === 0
+                  ? "<span style='color:#34d399;font-weight:800;'>£0 Major</span>"
+                  : `£${row.rep.totalExposureMin.toLocaleString()}–£${row.rep.totalExposureMax.toLocaleString()}`;
+              const motTxt = row.mot.hasMotData
+                ? escapeHtml(row.mot.ownerCareLabel)
+                : "Spec only";
+              const offerTxt =
+                v.askingPrice > 0
+                  ? `<strong style="color:#34d399;">£${row.rep.recommendedOfferPrice.toLocaleString()}</strong>`
+                  : "—";
+              return `
+                <tr class="${isBest ? "compare-winner" : ""}">
+                  <td>
+                    ${isBest ? "<div style='font-size:0.68rem;font-weight:900;color:#34d399;'>🏆 SAFEST PICK</div>" : ""}
+                    <strong>${escapeHtml(v.carLabel)}</strong>${regTxt}
+                  </td>
+                  <td>${v.mileage.toLocaleString()}</td>
+                  <td>${motTxt}</td>
+                  <td>${billTxt}</td>
+                  <td>${row.rc.ulezStatus === "charge" ? "🚨 Daily Fee" : "✅ Free"} · ${escapeHtml(row.rc.roadTaxShort || "")}</td>
+                  <td>${offerTxt}</td>
+                </tr>
+              `;
+            })
+            .join("")}
+        </tbody>
+      </table>
+    `;
+    compareModal.classList.add("open");
+  }
+
+  if (openCompareBtn) openCompareBtn.addEventListener("click", openCompareModal);
+  if (closeCompareModalBtn && compareModal) {
+    closeCompareModalBtn.addEventListener("click", () => compareModal.classList.remove("open"));
+    compareModal.addEventListener("click", (e) => {
+      if (e.target === compareModal) compareModal.classList.remove("open");
+    });
+  }
+  if (closeReceiptModalBtn && receiptModal) {
+    closeReceiptModalBtn.addEventListener("click", () => receiptModal.classList.remove("open"));
+    receiptModal.addEventListener("click", (e) => {
+      if (e.target === receiptModal) receiptModal.classList.remove("open");
     });
   }
 
@@ -516,6 +622,7 @@
     resultsSection.classList.remove("hidden");
     const v = report.vehicleSummary;
     const mot = report.motReport || { hasMotData: false };
+    const rc = report.runningCosts || {};
     const xref = report.crossReference || {};
     const affUrl = cfg.buildHistoryAffiliateUrl(v.registration);
 
@@ -523,6 +630,28 @@
       report.cliffCount === 0
         ? "£0 Major Cliffs"
         : `£${report.totalExposureMin.toLocaleString()}–£${report.totalExposureMax.toLocaleString()}`;
+
+    const quickStripHtml = isUnlocked
+      ? `
+      <div class="quick-strip">
+        <div class="quick-tile ${rc.ulezStatus === "charge" ? "charge" : rc.ulezStatus === "borderline" ? "warn" : "good"}">
+          <small>Clean Air &amp; ULEZ</small>
+          <strong>${escapeHtml(rc.ulezLabel || "✅ ULEZ & Brum CAZ Free")}</strong>
+          <span>${escapeHtml(rc.ulezSub || "")}</span>
+        </div>
+        <div class="quick-tile ${rc.taxInsTone === "warn" ? "warn" : "good"}">
+          <small>Est. Tax &amp; Insurance</small>
+          <strong>${escapeHtml(rc.taxInsLabel || "~£195/yr · Mid Ins.")}</strong>
+          <span>${escapeHtml(rc.taxInsSub || "")}</span>
+        </div>
+        <div class="quick-tile ${mot.ownerCareTone === "warn" ? "warn" : mot.ownerCareTone === "good" ? "good" : ""}">
+          <small>MOT Owner Care</small>
+          <strong>${escapeHtml(mot.ownerCareLabel || "Spec Check Mode")}</strong>
+          <span>${escapeHtml(mot.ownerCareSub || "")}</span>
+        </div>
+      </div>
+    `
+      : "";
 
     const offerStripHtml =
       isUnlocked && v.askingPrice > 0
@@ -655,6 +784,13 @@
           </div>
 
           ${latestItemsHtml}
+          ${
+            mot.repeatNeglect && mot.repeatNeglect.length > 0
+              ? `<div style="background:rgba(245,158,11,0.12);border-left:3px solid #f59e0b;padding:7px 10px;border-radius:0 8px 8px 0;font-size:0.81rem;color:#fde68a;margin-bottom:10px;">
+                  <strong>🔍 Repeat Unfixed Fault(s):</strong> ${mot.repeatNeglect.map((n) => escapeHtml(n)).join(" · ")}
+                </div>`
+              : ""
+          }
 
           <div style="font-size:0.75rem;font-weight:800;color:#94a3b8;text-transform:uppercase;margin-top:10px;">
             🔎 Cross-Reference Against Seller's Advert &amp; V5C Logbook:
@@ -851,8 +987,14 @@
           <button type="button" id="copyScriptBtn" class="btn-secondary" style="border-color:#facc15;color:#facc15;">
             📋 Copy Seller Message
           </button>
+          <a id="whatsappShareBtn" href="#" target="_blank" rel="noopener" class="btn-secondary" style="border-color:#34d399;color:#6ee7b7;">
+            📲 WhatsApp Summary
+          </a>
+          <button type="button" id="openReceiptBtn" class="btn-secondary">
+            📝 Sale Receipt &amp; Scam Rules
+          </button>
           <button type="button" id="printReportBtn" class="btn-secondary">
-            🖨 Save / Print PDF Report
+            🖨 Print Report
           </button>
         </div>
       </div>
@@ -882,6 +1024,7 @@
         </div>
       </div>
       ${offerStripHtml}
+      ${quickStripHtml}
       ${motAndXrefHtml}
       ${detailsHtml}
       ${writeOffCardHtml}
@@ -915,9 +1058,72 @@
       });
     }
 
+    const waBtn = document.getElementById("whatsappShareBtn");
+    if (waBtn) {
+      const regPart =
+        v.registration && !/CHECK/.test(v.registration) ? ` [${v.registration}]` : "";
+      const motLine = mot.hasMotData
+        ? `• MOT: ${mot.isLatestClean ? "Clean Latest Pass" : mot.latestAdvisories.length + " Advisory item(s)"}${mot.expiryDateUk ? " (Exp " + mot.expiryDateUk + ")" : ""} · ${mot.ownerCareLabel}`
+        : `• Running: ${rc.ulezLabel || ""} · ${rc.taxInsLabel || ""}`;
+      const offerLine =
+        v.askingPrice > 0
+          ? `\n• Asking: £${v.askingPrice.toLocaleString()} → Target Offer: £${report.recommendedOfferPrice.toLocaleString()}`
+          : "";
+      const waText =
+        `🚗 Car Check: ${v.carLabel}${regPart} (${v.mileage.toLocaleString()} mi)\n` +
+        `• Verdict: ${report.verdictLabel} (${exposureStr})\n` +
+        `${motLine}\n` +
+        `• Zones & Tax: ${rc.ulezLabel || "Check ULEZ"} · ${rc.taxInsLabel || ""}${offerLine}\n` +
+        `• Checked on: ${cfg.siteUrl}`;
+      waBtn.href = "https://wa.me/?text=" + encodeURIComponent(waText);
+    }
+
+    const openReceiptBtn = document.getElementById("openReceiptBtn");
+    if (openReceiptBtn && receiptModal && receiptPreviewBox) {
+      openReceiptBtn.addEventListener("click", () => {
+        const regClean =
+          v.registration && !/CHECK/.test(v.registration) ? v.registration : "__________________";
+        const priceBlank =
+          v.askingPrice > 0 ? `£${v.askingPrice.toLocaleString()} (or agreed £__________)` : "£__________________";
+        const receiptHtml = `
+          <div style="font-weight:900;font-size:1rem;border-bottom:1px solid #334155;padding-bottom:6px;margin-bottom:8px;">
+            🇬🇧 UK Private Used-Vehicle Sale &amp; Handover Receipt
+          </div>
+          <div><strong>Vehicle:</strong> ${escapeHtml(v.carLabel)} (${escapeHtml(v.transmission)}, ${escapeHtml(v.fuelType)})</div>
+          <div><strong>Registration:</strong> ${escapeHtml(regClean)} &nbsp;|&nbsp; <strong>VIN (last 6 / full):</strong> ______________________</div>
+          <div><strong>Odometer Mileage at Handover:</strong> ${v.mileage.toLocaleString()} miles &nbsp;|&nbsp; <strong>Keys Handed Over:</strong> _____</div>
+          <div><strong>Agreed Sale Price Paid:</strong> ${escapeHtml(priceBlank)} (Bank Transfer / Cash)</div>
+          <div><strong>Exact Date &amp; Time of Handover:</strong> ____/____/2026 at ____:____ AM/PM <em>(for speed/CAZ liability)</em></div>
+          <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #334155;">
+            <strong>Seller Declaration:</strong> I confirm I am the legal owner entitled to sell this vehicle, it is free of any undisclosed finance/hire-purchase, and it is sold accurately as described in the advertisement. Both buyer and seller should keep a photo/copy of this signed receipt.
+          </div>
+          <div style="margin-top:10px;">
+            <strong>Seller Name &amp; Address (match V5C):</strong> ________________________________________________<br />
+            <strong>Seller Signature:</strong> ___________________________ &nbsp; <strong>Buyer Signature:</strong> ___________________________
+          </div>
+        `;
+        receiptPreviewBox.innerHTML = receiptHtml;
+        if (printableReceiptOnly) printableReceiptOnly.innerHTML = receiptHtml;
+        receiptModal.classList.add("open");
+      });
+    }
+
+    if (printSaleReceiptBtn) {
+      printSaleReceiptBtn.onclick = () => {
+        document.body.classList.add("printing-receipt");
+        window.print();
+        setTimeout(() => {
+          document.body.classList.remove("printing-receipt");
+        }, 600);
+      };
+    }
+
     const printBtn = document.getElementById("printReportBtn");
     if (printBtn) {
-      printBtn.addEventListener("click", () => window.print());
+      printBtn.addEventListener("click", () => {
+        document.body.classList.remove("printing-receipt");
+        window.print();
+      });
     }
 
     const inlineUnlockBtn = document.getElementById("inlineUnlockBtn");

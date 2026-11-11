@@ -854,6 +854,53 @@
     const expiryIso = (latestTest && latestTest.expiryDate) || raw.motExpiryDate || "";
     const isMotExpired = expiryIso ? String(expiryIso).slice(0, 10) < "2026-11-09" : false;
 
+    // Detect Repeat / Ignored MOT Advisories across consecutive passed MOTs ("Owner Care Score")
+    const neglectCategories = [
+      { name: "Underbody / brake-pipe corrosion", rx: /corro|rust|oxid/i },
+      { name: "Engine / gearbox oil leak", rx: /\boil leak|oil mist/i },
+      { name: "Suspension arm / bush / pin wear", rx: /suspension arm|bush|ball joint|drop link|anti-roll/i },
+      { name: "Shock absorber leak / misting", rx: /shock absorber|damper/i },
+      { name: "Brake disc / pad wear", rx: /brake disc|brake pad/i },
+      { name: "Exhaust leak / mounting corrosion", rx: /exhaust/i }
+    ];
+    const repeatNeglect = [];
+    if (historyRows.length >= 2) {
+      neglectCategories.forEach((cat) => {
+        // Only flag faults that are STILL unfixed on the latest MOT after already appearing on prior MOT(s)
+        let streak = 0;
+        for (let i = 0; i < historyRows.length; i++) {
+          const items = [...(historyRows[i].advisories || []), ...(historyRows[i].failures || [])];
+          if (items.some((txt) => cat.rx.test(txt))) {
+            streak++;
+          } else if (historyRows[i].result === "PASSED") {
+            break;
+          }
+        }
+        if (streak >= 2) {
+          repeatNeglect.push(`${cat.name} still unfixed across last ${streak} MOTs`);
+        }
+      });
+    }
+
+    let ownerCareLabel = "Spec Check Mode";
+    let ownerCareSub = "Enter UK plate for MOT care score";
+    let ownerCareTone = "neutral";
+    if (historyRows.length > 0) {
+      if (repeatNeglect.length > 0) {
+        ownerCareLabel = `🟠 ${repeatNeglect.length} Repeat MOT Fault${repeatNeglect.length === 1 ? "" : "s"}`;
+        ownerCareSub = "Same advisory ignored 2+ yrs";
+        ownerCareTone = "warn";
+      } else if (latestAdvisories.length === 0 && !isMotExpired && latestRow && latestRow.result === "PASSED") {
+        ownerCareLabel = "🟢 Well-Kept MOTs";
+        ownerCareSub = "Past advisories sorted promptly";
+        ownerCareTone = "good";
+      } else {
+        ownerCareLabel = `🟡 ${latestAdvisories.length} Open Advisory${latestAdvisories.length === 1 ? "" : "s"}`;
+        ownerCareSub = "Check latest MOT items below";
+        ownerCareTone = "warn";
+      }
+    }
+
     const motReport = {
       hasMotData: historyRows.length > 0,
       totalTests: historyRows.length,
@@ -870,7 +917,86 @@
       mileageConsistent: !mileageDropped,
       previousPlates,
       crashClues,
+      repeatNeglect,
+      ownerCareLabel,
+      ownerCareSub,
+      ownerCareTone,
       historyRows
+    };
+
+    // ========================================================================
+    // UK RUNNING COSTS: ULEZ / BIRMINGHAM CAZ, ROAD TAX & INSURANCE BRACKET
+    // ========================================================================
+    const firstUsedIso = String(raw.firstUsedDate || "");
+    let ulezStatus = "free"; // "free" | "borderline" | "charge"
+    let ulezLabel = "✅ ULEZ & Brum CAZ Free";
+    let ulezSub = "Exempt from £8–£12.50/day zones";
+
+    if (isEV) {
+      ulezLabel = "✅ ULEZ & Brum CAZ Free";
+      ulezSub = "Zero-emission exempt";
+    } else if (isDiesel) {
+      if (year >= 2016 || (firstUsedIso && firstUsedIso >= "2015-09-01")) {
+        ulezLabel = "✅ ULEZ & Brum CAZ Free";
+        ulezSub = "Euro 6 diesel exempt";
+      } else if (year === 2015 && !firstUsedIso) {
+        ulezStatus = "borderline";
+        ulezLabel = "⚠️ 2015 Diesel — Check Euro 6";
+        ulezSub = "Confirm Euro 6 on V5C for CAZ/ULEZ";
+      } else {
+        ulezStatus = "charge";
+        ulezLabel = "🚨 CAZ / ULEZ Charge Applies";
+        ulezSub = "£8/day Brum CAZ · £12.50/day ULEZ";
+      }
+    } else {
+      if (year >= 2006) {
+        ulezLabel = "✅ ULEZ & Brum CAZ Free";
+        ulezSub = "Euro 4+ petrol exempt";
+      } else {
+        ulezStatus = "charge";
+        ulezLabel = "⚠️ Check ULEZ / CAZ";
+        ulezSub = "Pre-2006 petrol may pay daily fee";
+      }
+    }
+
+    const hasLuxuryTaxCliff = cliffs.some((c) => c.id === "uk-luxury-ved-trap");
+    let roadTaxShort = "~£195/yr Tax";
+    if (hasLuxuryTaxCliff) {
+      roadTaxShort = "⚠️ ~£620/yr Tax";
+    } else if (year <= 2016 || (firstUsedIso && firstUsedIso < "2017-04-01")) {
+      if (isEV || (isHybrid && litres <= 1.8)) roadTaxShort = "£0–£20/yr Tax";
+      else if (litres > 0 && litres <= 1.2) roadTaxShort = "£20–£160/yr Tax";
+      else if (litres >= 2.0 && !isDiesel) roadTaxShort = "£255–£415+/yr Tax";
+      else roadTaxShort = "CO2-Banded Tax";
+    }
+
+    const highInsSpec =
+      /LAND ROVER|RANGE ROVER|JAGUAR|PORSCHE|TESLA|BMW|MERCEDES|MASERATI|ALFA ROMEO/.test(make) ||
+      /\b(GTI|GTD|GTE|R\b|AMG|M SPORT|S3|S4|RS|VRS|ST\b|TYPE R|COOPER S|JCW)\b/.test(`${model} ${deriv}`);
+    const lowInsSpec =
+      !isEV &&
+      litres > 0 &&
+      litres <= 1.25 &&
+      /FIESTA|CORSA|POLO|IBIZA|FABIA|AYGO|YARIS|C1|108|208|UP|PICANTO|I10|MICRA|SWIFT|KA|PANDA|500|SANDERO|CLIO/.test(
+        `${make} ${model}`
+      );
+
+    const insShort = highInsSpec ? "High Ins." : lowInsSpec ? "Low Ins." : "Mid Ins.";
+    const insSub = highInsSpec
+      ? "Get insurance quote before viewing"
+      : lowInsSpec
+      ? "First-car / learner friendly tier"
+      : "Typical family insurance bracket";
+
+    const runningCosts = {
+      ulezStatus,
+      ulezLabel,
+      ulezSub,
+      roadTaxShort,
+      insShort,
+      taxInsLabel: `${roadTaxShort} · ${insShort}`,
+      taxInsSub: hasLuxuryTaxCliff ? "£40k+ list-price VED band risk" : insSub,
+      taxInsTone: hasLuxuryTaxCliff || highInsSpec ? "warn" : "good"
     };
 
     const crossReference = {
@@ -974,6 +1100,7 @@
         askingPrice
       },
       motReport,
+      runningCosts,
       crossReference,
       overallVerdict,
       verdictLabel,
