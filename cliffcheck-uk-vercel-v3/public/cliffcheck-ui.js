@@ -235,7 +235,7 @@
     } else {
       const left = Math.max(0, cfg.freeChecksAllowedWeb - getFreeUsedCount());
       openPassModalBtn.textContent =
-        left > 0 ? `🎁 ${left} Free Check · Get Pass` : "🔒 Unlock Pass (£9.99)";
+        left > 0 ? `🎁 ${left} Free Check · 30-Day Pass £9.99` : "🔒 Unlock 30-Day Pass (£9.99)";
       openPassModalBtn.classList.remove("active");
     }
   }
