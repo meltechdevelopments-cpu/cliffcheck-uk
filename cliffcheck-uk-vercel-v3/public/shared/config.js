@@ -2,13 +2,15 @@
 // CLIFFCHECK UK — FOUNDER CONFIGURATION (POLAR.SH + CARVERTICAL READY!)
 // ============================================================================
 (function (root) {
+  const HUNDRED_YEARS_MS = 100 * 365 * 24 * 60 * 60 * 1000;
+
   const CLIFFCHECK_CONFIG = {
     brandName: "CliffCheck UK",
     siteUrl: "https://cliffcheck-uk.vercel.app",
     passPriceText: "£9.99",
-    passDurationText: "30-Day Car-Hunter Pass",
+    passDurationText: "Lifetime Unlimited Pass",
 
-    // 1. Free full checks before the £9.99 Pass unlock kicks in:
+    // 1. Free full checks before the £9.99 Lifetime Pass unlock kicks in:
     freeChecksAllowedWeb: 1,
     freeChecksAllowedExtension: 2,
 
@@ -24,7 +26,7 @@
     // 4. Optional Mozilla Firefox Add-ons Store URL (paste once Mozilla signs your free add-on!):
     firefoxAmoStoreUrl: "",
 
-    // 5. Founder test code so YOU can test unlocking Pro right now:
+    // 5. Founder test code so YOU & your husband have unlimited checks forever:
     founderTestCode: "VIP-TEST-2026"
   };
 
@@ -36,8 +38,8 @@
     if (key.toUpperCase() === CLIFFCHECK_CONFIG.founderTestCode.toUpperCase()) {
       return {
         valid: true,
-        expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
-        plan: "30-Day Car-Hunter Pass (Founder Preview)"
+        expiresAt: Date.now() + HUNDRED_YEARS_MS,
+        plan: "Lifetime Unlimited Pass (Founder VIP)"
       };
     }
 
@@ -64,7 +66,7 @@
       return { valid: false, error: "Pass code not found — check the code in your Polar email receipt." };
     }
     if (resp.status === 403 || resp.status === 422) {
-      return { valid: false, error: "This 30-Day Pass has expired or reached its device limit." };
+      return { valid: false, error: "This Pass code is inactive or has reached its household device limit." };
     }
     if (!resp.ok) {
       return { valid: false, error: "Could not verify Pass code (" + resp.status + ")." };
@@ -73,17 +75,17 @@
     const data = await resp.json();
     const expiresAt = data.expires_at
       ? new Date(data.expires_at).getTime()
-      : Date.now() + 30 * 24 * 60 * 60 * 1000;
+      : Date.now() + HUNDRED_YEARS_MS;
 
     if (data.status === "granted" && expiresAt > Date.now()) {
       return {
         valid: true,
         expiresAt: expiresAt,
-        plan: "30-Day Car-Hunter Pass"
+        plan: "Lifetime Unlimited Pass"
       };
     }
 
-    return { valid: false, error: "This 30-Day Pass is no longer active." };
+    return { valid: false, error: "This Pass code is no longer active." };
   };
 
   CLIFFCHECK_CONFIG.buildHistoryAffiliateUrl = function (reg) {

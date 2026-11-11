@@ -230,12 +230,12 @@
 
   function updatePassBadge() {
     if (hasActivePass()) {
-      openPassModalBtn.textContent = "✅ 30-Day Pass Active";
+      openPassModalBtn.textContent = "✅ Lifetime Pass Active";
       openPassModalBtn.classList.add("active");
     } else {
       const left = Math.max(0, cfg.freeChecksAllowedWeb - getFreeUsedCount());
       openPassModalBtn.textContent =
-        left > 0 ? `🎁 ${left} Free Check · 30-Day Pass £9.99` : "🔒 Unlock 30-Day Pass (£9.99)";
+        left > 0 ? `🎁 ${left} Free Check · Lifetime Pass £9.99` : "🔒 Unlock Lifetime Pass (£9.99)";
       openPassModalBtn.classList.remove("active");
     }
   }
@@ -719,13 +719,13 @@
               <li>✅ Hidden mechanical bill breakdown (${exposureStr})</li>
               <li>✅ Tailored 5-point phone forecourt viewing checklist</li>
               <li>✅ Ready-to-send seller message${report.suggestedDiscount > 0 ? ` to knock <strong>~£${report.suggestedDiscount.toLocaleString()}</strong> off asking price` : ""}</li>
-              <li>✅ <strong>Unlimited checks for 30 days</strong> on Phone &amp; Mozilla Firefox Add-On</li>
+              <li>✅ <strong>Lifetime unlimited checks — yours forever</strong> on Phone &amp; Mozilla Firefox Add-On</li>
             </ul>
             <button type="button" id="inlineUnlockBtn" class="btn-primary" style="max-width:360px;">
-              Unlock 30-Day Pass — ${cfg.passPriceText} Once →
+              Unlock Lifetime Pass — ${cfg.passPriceText} Once →
             </button>
             <div style="margin-top:8px;font-size:0.78rem;color:#94a3b8;">
-              Single payment · No subscription · Instant unlock
+              Single payment for life · Never expires · No subscription
             </div>
           </div>
         </div>

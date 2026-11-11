@@ -305,13 +305,13 @@
         el(
           "div",
           "font-size:11.5px;color:#cbd5e1;margin-bottom:10px;",
-          "Unlimited AutoTrader + Phone checks for 30 days — £9.99 once."
+          "Unlimited AutoTrader + Phone checks for life — £9.99 once."
         )
       );
       const unlockLink = el(
         "a",
         "display:block;background:#facc15;color:#0f172a;text-decoration:none;padding:9px;border-radius:8px;font-weight:900;font-size:12.5px;",
-        "Unlock 30-Day Pass (£9.99) →"
+        "Unlock Lifetime Pass (£9.99) →"
       );
       unlockLink.href = cfg.checkoutUrl;
       unlockLink.target = "_blank";
